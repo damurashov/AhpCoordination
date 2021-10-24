@@ -34,9 +34,8 @@ class World:
 		self.param.loss_energy_attack_harv_coef = None  # The fraction of ENERGY a HARVESTER loses after attack, given that it survives
 		self.param.gain_res_attack_coef = None  # The fraction from ENERGY an agent converts into RESOURCE given that it survives
 
-		self.sglobal.resource = int()  # Dictionary representing the resource teams have. Format: {team_id: n_resources}
-		self.sglobal.n_agents = dict()  # Dictionary representing teams cardinalities. Format: {agent_type: n_agents}
-		self.sglobal.energy = dict()  # Dictionary representing teams energy values. Format: {team_id: strenght_overall}
+		self.sglobal.resource = int()  # Dictionary representing the resource teams have. Format: {team_id: resource_amount}
+		self.sglobal.energy = dict()  # Dictionary representing team energy values. Format: {team_id: strength_overall}
 
 		self.agent.id = None  # Id of the agent
 		self.agent.xy = None  # Pair of an agent's x and y coordinates
@@ -88,18 +87,17 @@ class Reasoning(World):
 
 		return ret
 
-	def __init__(self):
-
-		World.__init__(self)
+	def _construct_pref_graph(self):
 
 		# A set of heuristics scaling from 0 to 1. Their sole purpose is to ensure corellations between system parameters and hierarchy weights, to add a modicum of realism
 		self.gain_enemies_fight_each_other = (self.param.team_n_agents - 2) / self.param.team_n_agents
-		self.loss_energy_attack = .5 * (self.param.loss_energy_attack_harv_coef + self.param.loss_energy_attack_hit_coef) / max([self.param.loss_energy_attack_harv_coef, self.world.param.loss_energy_attack_hit_coef])
-		self.gain_resource_take = .5 * (self.param.gain_res_harv_coef + self.param.gain_res_hit_coef) / max([self.param.gain_res_harv_coef, self.param.gain_res_hit_coef])
+		self.loss_energy_attack = .5 * (
+					self.param.loss_energy_attack_harv_coef + self.param.loss_energy_attack_hit_coef) / max(
+			[self.param.loss_energy_attack_harv_coef, self.world.param.loss_energy_attack_hit_coef])
+		self.gain_resource_take = .5 * (self.param.gain_res_harv_coef + self.param.gain_res_hit_coef) / max(
+			[self.param.gain_res_harv_coef, self.param.gain_res_hit_coef])
 		self.gain_resource_attack = self.param.gain_res_attack_coef
 		self.loss_energy_idle = self.param.loss_energy_wander_coef
-
-	def _construct_pref_graph(self):
 
 		strategy = Compare("strategy", Reasoning._to_pairwise({"invasive": .5, "secure": .5}))
 		invasive = Compare("invasive", Reasoning._to_pairwise({
@@ -114,5 +112,7 @@ class Reasoning(World):
 			"strength_inv": .6 - self.gain_enemies_fight_each_other,  # Weakness of a domestic swarm
 		}))
 
-	def solve_global(self):
+		strategy.add_children([invasive, secure])
 
+	def _adjust_global(self):
+		
