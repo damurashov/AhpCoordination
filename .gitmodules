@@ -1,0 +1,3 @@
+[submodule "ahpcoord/ahpy"]
+	path = ahpcoord/ahpy
+	url = git@github.com:damurashov/AHPy.git
