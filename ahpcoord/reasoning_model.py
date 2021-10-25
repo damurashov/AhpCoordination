@@ -1,8 +1,8 @@
 """
-Form the standpoing of developing a homogenous python application, the architectural approach implemented here is far
-from optimal, because we imply use of a global variable before inferring action. However, this code was originally
-designed with an intent to integrate it with a NetLogo simulation. Here is where this blunt approach comes from. We
-need a global variable to pass parameters from NetLogo to Python interpreter, and vice versa
+Form the standpoint of developing a homogenous python application, the architectural approach implemented here is far
+from optimal, because we imply use of a global variable before inferring an action. However, this code was originally
+designed with an intent to integrate it with a NetLogo simulation model. Here is where this blunt approach comes from.
+We need a global variable to pass parameters from NetLogo to Python interpreter, and vice versa.
 """
 
 
