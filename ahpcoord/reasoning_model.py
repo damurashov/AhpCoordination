@@ -1,5 +1,14 @@
+"""
+Form the standpoing of developing a homogenous python application, the architectural approach implemented here is far
+from optimal, because we imply use of a global variable before inferring action. However, this code was originally
+designed with an intent to integrate it with a NetLogo simulation. Here is where this blunt approach comes from. We
+need a global variable to pass parameters from NetLogo to Python interpreter, and vice versa
+"""
+
+
 from ahpy.ahpy.ahpy import Compare
 import copy
+
 
 class World:
 	"""
@@ -34,8 +43,8 @@ class World:
 		self.param.loss_energy_attack_harv_coef = None  # The fraction of ENERGY a HARVESTER loses after attack, given that it survives
 		self.param.gain_res_attack_coef = None  # The fraction from ENERGY an agent converts into RESOURCE given that it survives
 
-		self.sglobal.resource = int()  # Dictionary representing the resource teams have. Format: {team_id: resource_amount}
-		self.sglobal.energy = dict()  # Dictionary representing team energy values. Format: {team_id: strength_overall}
+		self.sglobal.resource = float()  #  A number the resource teams have.
+		self.sglobal.energy = float()  # A number representing team energy values.
 
 		self.agent.id = None  # Id of the agent
 		self.agent.xy = None  # Pair of an agent's x and y coordinates
@@ -90,29 +99,44 @@ class Reasoning(World):
 	def _construct_pref_graph(self):
 
 		# A set of heuristics scaling from 0 to 1. Their sole purpose is to ensure corellations between system parameters and hierarchy weights, to add a modicum of realism
-		self.gain_enemies_fight_each_other = (self.param.team_n_agents - 2) / self.param.team_n_agents
-		self.loss_energy_attack = .5 * (
-					self.param.loss_energy_attack_harv_coef + self.param.loss_energy_attack_hit_coef) / max(
-			[self.param.loss_energy_attack_harv_coef, self.world.param.loss_energy_attack_hit_coef])
-		self.gain_resource_take = .5 * (self.param.gain_res_harv_coef + self.param.gain_res_hit_coef) / max(
-			[self.param.gain_res_harv_coef, self.param.gain_res_hit_coef])
-		self.gain_resource_attack = self.param.gain_res_attack_coef
-		self.loss_energy_idle = self.param.loss_energy_wander_coef
+		self.world.gain_enemies_fight_each_other = (self.world.param.team_n_agents - 2) / self.world.param.team_n_agents
+		self.world.loss_energy_attack = .5 * (
+					self.world.param.loss_energy_attack_harv_coef + self.world.param.loss_energy_attack_hit_coef) / max(
+			[self.world.param.loss_energy_attack_harv_coef, self.world.world.param.loss_energy_attack_hit_coef])
+		self.world.gain_resource_take = .5 * (self.world.param.gain_res_harv_coef + self.world.param.gain_res_hit_coef) / max(
+			[self.world.param.gain_res_harv_coef, self.world.param.gain_res_hit_coef])
+		self.world.gain_resource_attack = self.world.param.gain_res_attack_coef
+		self.world.loss_energy_idle = self.world.param.loss_energy_wander_coef
 
 		strategy = Compare("strategy", Reasoning._to_pairwise({"invasive": .5, "secure": .5}))
 		invasive = Compare("invasive", Reasoning._to_pairwise({
-			"enemy_strength": .1 + .3 * self.gain_enemies_fight_each_other + .9 * self.gain_resource_attack,  # Enemy can be converted to resource
+			"enemy_strength": .1 + .3 * self.world.gain_enemies_fight_each_other + .9 * self.world.gain_resource_attack,  # Enemy can be converted to resource
 			"enemy_strength_inv": .5,  # Enemy weakness is conducive to successful attack
-			"resource_inv": .5 + self.gain_resource_take + self.loss_energy_idle,
+			"resource_inv": .5 + self.world.gain_resource_take + self.world.loss_energy_idle,
 			"strength": .4
 		}))
 		secure = Compare("secure", Reasoning._to_pairwise({
-			"enemy_strength": .5 + self.loss_energy_attack,  # Strong enemy is better be avoided,
-			"resource": .5 - self.loss_energy_idle,  # Having a sufficient amount of resource is a good reason to stay away from troubles
-			"strength_inv": .6 - self.gain_enemies_fight_each_other,  # Weakness of a domestic swarm
+			"enemy_strength": .5 + self.world.loss_energy_attack,  # Strong enemy is better be avoided,
+			"resource": .5 - self.world.loss_energy_idle,  # Having a sufficient amount of resource is a good reason to stay away from troubles
+			"strength_inv": .6 - self.world.gain_enemies_fight_each_other,  # Weakness of a domestic swarm
 		}))
 
 		strategy.add_children([invasive, secure])
 
-	def _adjust_global(self):
-		
+	def _infer_weights_global(self):
+		"""
+		:return: Infers control and returns an AHPy-compatible dict. of pairwise comparisons
+		"""
+		pass
+
+	def adjust_global(self, weights: list = None):
+		"""
+		:param userval: Pair of weights (not necessarily normalized) corresponding to "invasive" and "safe" strategies. Format: [a, b]
+		:return:
+		"""
+		if weights is None:
+			weights = self._infer_control_global()
+		else:
+			weights = Reasoning._to_pairwise(["invasive", "secure"], weights)
+
+	def _infer_action_local(self):
