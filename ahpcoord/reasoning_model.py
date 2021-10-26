@@ -1,70 +1,45 @@
-"""
-Form the standpoint of developing a homogenous python application, the architectural approach implemented here is far
-from optimal, because we imply use of a global variable before inferring an action. However, this code was originally
-designed with an intent to integrate it with a NetLogo simulation model. Here is where this blunt approach comes from.
-We need a global variable to pass parameters from NetLogo to Python interpreter, and vice versa.
-"""
-
-
 from ahpy.ahpy.ahpy import Compare
 import copy
+import math
 
 
 class World:
 	"""
 	Contains model parameters that are valuable for decision inferring, offers an interface for input / output from / to
-	NetLogo which will use this container
+	NetLogo which will use this container.
 	"""
 
 	class _Arg:
 		pass
 
+	class Agent:
+
+		LOSS_ENERGY_STEP = None
+		LOSS_ENERGY_HIT = None  # Energy getting lost on hit, given that the agent was the one instantiating the hit
+		GAIN_ENERGY_HIT = None  # Energy acquired from a defeated enemy
+
+		# A part of resource goes to agent, while the other one - to the storage
+		GAIN_ENERGY_TAKE = .5  # Energy acquired from a resource taken
+		GAIN_RESOURCE_TAKE = 1 - GAIN_ENERGY_TAKE  # Resource acquired from a resource taken
+
+		SITUATION_ASSESSMENT_RADIUS = None  # Radius within which a situation gets assessed
+		SITUATION_ASSESSMENT_TICK = None  # Any event (take, hit) triggers another situation assessment iteration. This tick represents a limit
+
+		def __init__(self):
+			self.id = int()
+			self.coord = list()
+			self.energy = float()
+			self.type = str()
+			self.team = int()
+			self.activity = str()
+
 	def __init__(self):
-		self.sglobal = World._Arg()
-		self.agent = World._Arg()
-		self.param = World._Arg()  # Model parameters: interaction coefficients, sizes, etc.
-		self.slocal = World._Arg()
-		self.out = World._Arg()
+		self.agents_all = {}  # All agents, for global situation assessment. Format: {agent_id: instance of Agent}
+		self.reset()
 
-		# Global situation assessment
-		self.param.sa_radius = None  # The radius within which a situation gets assessed
-		self.param.xy = None  # Size of the world
-		self.param.n_teams = None  # Number of teams
-		self.param.team_n_agents = None  # Number of agents in each team
-
-		self.param.max_res = None  # The max. amount of RESOURCE contained in one RESOURCE instance. This is the amount of energy resource every resource agent gets started with.
-		self.param.max_energy = None  # The max. amount of ENERGY stored in one AGENT. This is the amount of energy resource every agent get started with.
-
-		self.param.gain_res_harv_coef = None  # The fraction of RESOURCE one HARVESTER gets from one RESOURCE instance
-		self.param.gain_res_hit_coef = None  # The fraction of RESOURCE one HITTER gets from one RESOURCE instance
-		self.param.gain_probability_attack_wander = None  # The bonus an agent gets while running from a fight. Although it cannot evade fights completely, the negative impact can be mitigated
-		self.param.loss_energy_wander_coef = None  # The fraction of ENERGY an agent loses every step
-		self.param.loss_energy_attack_hit_coef = None  # The fraction of ENERGY a HITTER loses after attack, given that it survives
-		self.param.loss_energy_attack_harv_coef = None  # The fraction of ENERGY a HARVESTER loses after attack, given that it survives
-		self.param.gain_res_attack_coef = None  # The fraction from ENERGY an agent converts into RESOURCE given that it survives
-
-		self.sglobal.resource = float()  #  A number the resource teams have.
-		self.sglobal.energy = float()  # A number representing team energy values.
-
-		self.agent.id = None  # Id of the agent
-		self.agent.xy = None  # Pair of an agent's x and y coordinates
-		self.agent.task = None  # An operation the agent is carrying out currently
-		self.agent.energy = None  # energy of the current agent
-		self.agent.type = None  # Type of the current agent
-		self.agent.target = None  # Depending on a context, either id of an enemy or that of a friend
-		self.agent.team = None  # Team which the agent belongs to
-
-		# Local situation assessment
-		self.slocal.ids = None  # List of ids representing listed agents
-		self.slocal.xy = None  # List of x, y sequences of listed agents
-		self.slocal.energy = None  # List of listed agents' energy variables
-		self.slocal.type = None  # List of listed agents' types
-		self.slocal.team = None  # List of teams other agents belong to
-		self.slocal.activities = None  # List of other agents' activities
-
-		# Output
-		self.out.task = None
-		self.out.target = None
+	def reset(self):
+		self.agents_here = {}  # Agents within self.param.sa_radius, for local situation assessment. Format: {agent_id: instance of Agent}
+		pass
 
 
 class Reasoning(World):
@@ -96,17 +71,14 @@ class Reasoning(World):
 
 		return ret
 
-	def _construct_pref_graph(self):
+	def __init__(self, world: World):
+		"""
+		:param world_team: The world representing the state of a current team, and specifically the world's state of an
+		agent for which the control action inferring (weighting) is about to take place
+		"""
+		self.world = world
 
-		# A set of heuristics scaling from 0 to 1. Their sole purpose is to ensure corellations between system parameters and hierarchy weights, to add a modicum of realism
-		self.world.gain_enemies_fight_each_other = (self.world.param.team_n_agents - 2) / self.world.param.team_n_agents
-		self.world.loss_energy_attack = .5 * (
-					self.world.param.loss_energy_attack_harv_coef + self.world.param.loss_energy_attack_hit_coef) / max(
-			[self.world.param.loss_energy_attack_harv_coef, self.world.world.param.loss_energy_attack_hit_coef])
-		self.world.gain_resource_take = .5 * (self.world.param.gain_res_harv_coef + self.world.param.gain_res_hit_coef) / max(
-			[self.world.param.gain_res_harv_coef, self.world.param.gain_res_hit_coef])
-		self.world.gain_resource_attack = self.world.param.gain_res_attack_coef
-		self.world.loss_energy_idle = self.world.param.loss_energy_wander_coef
+	def _construct_pref_graph(self):
 
 		strategy = Compare("strategy", Reasoning._to_pairwise({"invasive": .5, "secure": .5}))
 		invasive = Compare("invasive", Reasoning._to_pairwise({
@@ -123,15 +95,13 @@ class Reasoning(World):
 
 		strategy.add_children([invasive, secure])
 
-	def _infer_weights_global(self):
-		"""
-		:return: Infers control and returns an AHPy-compatible dict. of pairwise comparisons
-		"""
-		pass
+		for aspect in ["resource", "resource_inv", "strength", "strength_inv", "resource", "resource_inv"]:
+			strategy.add_children(["take", "run", "hit"])
 
-	def adjust_global(self, weights: list = None):
+	def adjust_global(self, weights: list = []):
 		"""
 		:param userval: Pair of weights (not necessarily normalized) corresponding to "invasive" and "safe" strategies. Format: [a, b]
+		:param weights:
 		:return:
 		"""
 		if weights is None:
@@ -139,4 +109,40 @@ class Reasoning(World):
 		else:
 			weights = Reasoning._to_pairwise(["invasive", "secure"], weights)
 
-	def _infer_action_local(self):
+	# The following implements a set of ad-hoc heuristic-based assessments of possible impacts of every agent's actions
+	# within each context. The assessments are implemented as normalized vector of scores for each action.
+
+	def _infer_action_enemy_strength_local(self, agent_id):
+		pass
+
+	def _infer_action_enemy_strength_inv_local(self, agent_id):
+		pass
+
+	def _infer_action_resource_local(self, agent_id):
+		pass
+
+	def _infer_action_resouce_inv_local(self, agent_id):
+		pass
+
+	def _infer_action_strength_inv_local(self, agent_id):
+		pass
+
+	def _infer_action_strength_inv_local(self, agent_id):
+		pass
+
+	def _infer_action_local(self, agent_id):
+		enemy_strength_weights = self._infer_action_enemy_strength_local(agent_id)
+		enemy_strength_inv_weights = self._infer_action_enemy_strength_inv_local(agent_id)
+		resource_weights = self._infer_action_resource_local(agent_id)
+		resource_inv_weights = self._infer_action_resouce_inv_local(agent_id)
+		strength_weights = self._infer_action_strength_inv_local(agent_id)
+		strength_inv_weights = self._infer_action_strength_inv_local(agent_id)
+
+		self.graph.update_weights(enemy_strength_weights, 'enemy_strength')
+		self.graph.update_weights(enemy_strength_inv_weights, 'enemy_strength_inv')
+		self.graph.update_weights(resource_weights, 'resource')
+		self.graph.update_weights(resource_inv_weights, 'resource_inv')
+		self.graph.update_weights(strength_weights, 'strength')
+		self.graph.update_weights(strength_inv_weights, 'strength_inv')
+
+		print(self.graph.target_weights)
