@@ -222,65 +222,63 @@ class Reasoning:
 		raise NotImplemented
 		return run, hit, idle, take
 
+	def _infer_decorator(self, agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, coef_move):
+		"""boilerplate-reducing method"""
+
+		gain_idle = self.world.rules.calc_gain_equation(self.world.agents_all[agent_id], self.world.agents_here,
+			f_move=False, coef_move=coef_move, hit_gain_cb=hit_gain_cb_passive)
+		gain_run = self.world.rules.calc_gain_equation(self.world.agents_all[agent_id], self.world.agents_here,
+			f_move=True, coef_move=coef_move, hit_gain_cb=hit_gain_cb_passive)
+		gain_hit = self.world.rules.calc_gain_equation(self.world.agents_all[agent_id], self.world.agents_here,
+			f_move=True, coef_move=coef_move, hit_gain_cb=hit_gain_cb_active)
+		gain_take = self.world.rules.calc_gain_equation(self.world.agents_all[agent_id], self.world.agents_here,
+			f_move=True, coef_move=coef_move, hit_gain_cb=hit_gain_cb_passive, take_gain_cb=take_gain_cb)
+
+		gain_run, gain_hit, gain_idle, gain_take = self._normalize_scores(gain_run, gain_hit, gain_idle, gain_take)
+
+		return {"run": gain_run, "hit": gain_hit, "idle": gain_idle, "take": gain_take}
+
 	def _infer_action_enemy_strength_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[2]
 		hit_gain_cb_active = lambda agent, agent_other: .5 * \
 			(self.world.rules.calc_fight(agent_other, agent, True, True)[2] +
 			self.world.rules.calc_fight(agent_other, agent, True, False)[2])
+		take_gain_cb = lambda agent, agent_other: 0
 
-		gain_idle = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			f_move=False, coef_move=0, hit_gain_cb=hit_gain_cb_passive)
-		gain_run = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			f_move=True, coef_move=0, hit_gain_cb=hit_gain_cb_passive)
-		gain_hit = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			f_move=True, coef_move=0, hit_gain_cb=hit_gain_cb_active)
-		gain_take = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			f_move=True, coef_move=0, hit_gain_cb=hit_gain_cb_passive, take_gain_cb=lambda agent, agent_other: 0)
-
-		gain_run, gain_hit, gain_idle, gain_take = self._normalize_scores(gain_run, gain_hit, gain_idle, gain_take)
-
-		return {"run": gain_run, "hit": gain_hit, "idle": gain_idle, "take": gain_take}
+		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, lambda a, b: 0, 0)
 
 	def _infer_action_enemy_strength_inv_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[3]
 		hit_gain_cb_active = lambda agent, agent_other: .5 * \
 			(self.world.rules.calc_fight(agent_other, agent, True, True)[3] +
 			self.world.rules.calc_fight(agent_other, agent, True, False)[3])
+		take_gain_cb = lambda agent, agent_other: 0
 
-		gain_idle = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			f_move=False, coef_move=0, hit_gain_cb=hit_gain_cb_passive)
-		gain_run = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			f_move=True, coef_move=0, hit_gain_cb=hit_gain_cb_passive)
-		gain_hit = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			f_move=True, coef_move=0, hit_gain_cb=hit_gain_cb_active)
-		gain_take = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			f_move=True, coef_move=0, hit_gain_cb=hit_gain_cb_passive, take_gain_cb=lambda agent, agent_other: 0)
-
-		gain_run, gain_hit, gain_idle, gain_take = self._normalize_scores(gain_run, gain_hit, gain_idle, gain_take)
-
-		return {"run": gain_run, "hit": gain_hit, "idle": gain_idle, "take": gain_take}
+		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, lambda a, b: 0, 0)
 
 	def _infer_action_resource_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[0]
 		hit_gain_cb_active = lambda agent, agent_other: .5 * \
 			(self.world.rules.calc_fight(agent_other, agent, True, True)[0] +
 			self.world.rules.calc_fight(agent_other, agent, True, False)[0])
+		take_gain_cb = hit_gain_cb_passive
 
-		gain_idle = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here, f_move=0,
-			coef_move=0, hit_gain_cb=hit_gain_cb_passive)
-		gain_run = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here, f_move=1,
-			coef_move=0, hit_gain_cb=hit_gain_cb_passive)
-		gain_take = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here, f_move=1,
-			coef_move=0, hit_gain_cb=hit_gain_cb_passive, take_gain_cb=)
+		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_resouce_inv_local(self, agent_id):
-		pass
+		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[1]
+		hit_gain_cb_active = lambda agent, agent_other: .5 * \
+			(self.world.rules.calc_fight(agent_other, agent, True, True)[1] +
+			self.world.rules.calc_fight(agent_other, agent, True, False)[1])
+		take_gain_cb = hit_gain_cb_passive
+
+		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_strength_local(self, agent_id):
-		pass
+		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, -1)
 
 	def _infer_action_strength_inv_local(self, agent_id):
-		pass
+		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 1)
 
 	def _infer_action_local(self, agent_id):
 		enemy_strength_weights = self._infer_action_enemy_strength_local(agent_id)
