@@ -49,18 +49,23 @@ class World:
 				Energy gain for agent 1 (given that it wins),
 			)
 			"""
-			assert agent_penalty or agent_other_penalty  # At least someone has to start a fight
+			assert agent.type == World.Agent.Type.HITTER
+			assert agent_other.type in [World.Agent.Type.HITTER, World.Agent.Type.RESOURCE]
 
-			# Energies adjusted for penalties
-			a_en = agent.energy - (self.loss_energy_hit if agent_penalty else 0)
-			ao_en = agent_other.energy - (self.loss_energy_hit if agent_other_penalty else 0)
+			if agent_other.type == World.Agent.Type.HITTER:  # Interaction b\w a hitter and a hitter
+				assert agent_penalty or agent_other_penalty  # At least someone has to start a fight
+				# Energies adjusted for penalties
+				a_en = agent.energy - (self.loss_energy_hit if agent_penalty else 0)
+				ao_en = agent_other.energy - (self.loss_energy_hit if agent_other_penalty else 0)
 
-			rg1 = self.gain_resource_hit * agent_other.energy * a_en / (a_en + ao_en)
-			rl1 = self.loss_resource_hit * agent.energy * ao_en / (a_en + ao_en)
-			eg1 = self.gain_energy_hit * agent_other.energy * a_en / (a_en + ao_en)
-			el1 = agent.energy * a_en / (a_en + ao_en)
+				rg1 = self.gain_resource_hit * agent_other.energy * a_en / (a_en + ao_en)
+				rl1 = self.loss_resource_hit * agent.energy * ao_en / (a_en + ao_en)
+				eg1 = self.gain_energy_hit * agent_other.energy * a_en / (a_en + ao_en)
+				el1 = agent.energy * a_en / (a_en + ao_en)
 
-			return rg1, rl1, eg1, el1
+				return rg1, rl1, eg1, el1
+			elif agent_other.type == World.Agent.Type.RESOURCE:  # Interaction b\w a hitter and a resource
+				return self.gain_resource_take * agent_other.energy, 0, self.gain_energy_take * agent_other.energy, 0
 
 		def calc_nticks(self, agent):
 			"""
