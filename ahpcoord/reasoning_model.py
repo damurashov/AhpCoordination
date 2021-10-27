@@ -89,6 +89,7 @@ class World:
 			:param agent: instance of
 			:return: list[World.Agent]
 			"""
+			pass
 
 		def calc_gain_equation(self, agent, agents, f_move, coef_move, hit_gain_cb=None, take_gain_cb=None):
 			"""
@@ -221,7 +222,9 @@ class Reasoning(World):
 
 	def _infer_action_enemy_strength_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[2]
-		hit_gain_cb_active = lambda agent, agent_other: .5 * (self.world.rules.calc_fight(agent_other, agent, True, True)[2] + self.world.rules.calc_fight(agent_other, agent, True, False)[2])
+		hit_gain_cb_active = lambda agent, agent_other: .5 * \
+			(self.world.rules.calc_fight(agent_other, agent, True, True)[2] +
+			self.world.rules.calc_fight(agent_other, agent, True, False)[2])
 
 		gain_idle = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
 			f_move=False, coef_move=0, hit_gain_cb=hit_gain_cb_passive)
@@ -238,7 +241,9 @@ class Reasoning(World):
 
 	def _infer_action_enemy_strength_inv_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[3]
-		hit_gain_cb_active = lambda agent, agent_other: .5 * (self.world.rules.calc_fight(agent_other, agent, True, True)[3] + self.world.rules.calc_fight(agent_other, agent, True, False)[3])
+		hit_gain_cb_active = lambda agent, agent_other: .5 * \
+			(self.world.rules.calc_fight(agent_other, agent, True, True)[3] +
+			self.world.rules.calc_fight(agent_other, agent, True, False)[3])
 
 		gain_idle = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
 			f_move=False, coef_move=0, hit_gain_cb=hit_gain_cb_passive)
@@ -254,7 +259,17 @@ class Reasoning(World):
 		return {"run": gain_run, "hit": gain_hit, "idle": gain_idle, "take": gain_take}
 
 	def _infer_action_resource_local(self, agent_id):
-		pass
+		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[0]
+		hit_gain_cb_active = lambda agent, agent_other: .5 * \
+			(self.world.rules.calc_fight(agent_other, agent, True, True)[0] +
+			self.world.rules.calc_fight(agent_other, agent, True, False)[0])
+
+		gain_idle = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here, f_move=0,
+			coef_move=0, hit_gain_cb=hit_gain_cb_passive)
+		gain_run = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here, f_move=1,
+			coef_move=0, hit_gain_cb=hit_gain_cb_passive)
+		gain_take = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here, f_move=1,
+			coef_move=0, hit_gain_cb=hit_gain_cb_passive, take_gain_cb=)
 
 	def _infer_action_resouce_inv_local(self, agent_id):
 		pass
