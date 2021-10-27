@@ -141,7 +141,7 @@ class World:
 		pass
 
 
-class Reasoning(World):
+class Reasoning:
 
 	@staticmethod
 	def _to_pairwise(*args):
@@ -212,9 +212,6 @@ class Reasoning(World):
 
 	# The following implements a set of ad-hoc heuristic-based assessments of possible impacts of every agent's actions
 	# within each context. The assessments are implemented as normalized vector of scores for each action.
-
-	def _reachable(agent1, agent2, tick):
-		return dist(agent1.coord, agent2.coord) / World.Agent.SPEED <= tick
 
 	def _normalize_scores(self, run, hit, idle, take):
 		raise NotImplemented
