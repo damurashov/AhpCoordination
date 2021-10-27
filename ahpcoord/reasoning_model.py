@@ -15,7 +15,7 @@ class World:
 		def __init__(self):
 			self.gain_energy_idle = None
 			self.loss_energy_step = None
-			self.loss_energy_hit = None  # Energy penalty for initiating a hit
+			self.loss_energy_hit = None  # Energy penalty for initiating a hit. initial_energy * (1 - loss_energy_hit)
 			self.gain_energy_hit = .5  # Energy acquired from a defeated enemy
 			self.gain_resource_hit = 1 - self.gain_energy_hit
 			self.loss_resource_hit = None  # The amount of resource a team loses when an agent dies
@@ -49,8 +49,8 @@ class World:
 			if agent_other.type == World.Agent.Type.HITTER:  # Interaction b\w a hitter and a hitter
 				assert agent_penalty or agent_other_penalty  # At least someone has to start a fight
 				# Energies adjusted for penalties
-				a_en = agent.energy - (self.loss_energy_hit if agent_penalty else 0)
-				ao_en = agent_other.energy - (self.loss_energy_hit if agent_other_penalty else 0)
+				a_en = agent.energy * (1 - self.loss_energy_hit if agent_penalty else 0)
+				ao_en = agent_other.energy * (1 - self.loss_energy_hit if agent_other_penalty else 0)
 
 				rg1 = self.gain_resource_hit * agent_other.energy * a_en / (a_en + ao_en)
 				rl1 = self.loss_resource_hit * agent.energy * ao_en / (a_en + ao_en)
@@ -211,8 +211,9 @@ class Reasoning:
 		agent for which the control action inferring (weighting) is about to take place
 		"""
 		self.world = world
+		self.graph = self._construct_pref_graph()
 
-	def _construct_pref_graph(self):
+	def _construct_pref_graph():
 
 		strategy = Compare("strategy", Reasoning._to_pairwise({"invasive": .5, "secure": .5}))
 		invasive = Compare("invasive", Reasoning._to_pairwise({
@@ -232,7 +233,7 @@ class Reasoning:
 		for aspect in ["resource", "resource_inv", "strength", "strength_inv", "resource", "resource_inv"]:
 			strategy.add_children(["take", "run", "hit"])
 
-		self.graph = strategy
+		return strategy
 
 	def adjust_global(self, weights: list = []):
 		"""
