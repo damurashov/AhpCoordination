@@ -33,7 +33,7 @@ class World:
 			self.situation_assessment_tick = None  # Any event (take, hit) triggers another situation assessment iteration. This tick represents a limit
 			self.speed = None  # Distance units / tick
 
-		def calc_fight(self, agent1, agent2, agent1_penalty=False, agent2_penalty=False):
+		def calc_fight(self, agent, agent_other, agent_penalty=False, agent_other_penalty=False):
 			"""
 			G_fight * p_fight; while S_fight = G_fight * p_fight * p_ag
 
@@ -45,25 +45,21 @@ class World:
 			Return format:
 			tuple: (
 				Resource gain for team 1 (given that it wins),
-				Resource gain for team 2 (given that it wins),
 				Resource loss for team 1 (given that it loses),
-				Resource loss for team 2 (given that it loses),
 				Energy gain for agent 1 (given that it wins),
-				Energy gain for agent 2 (given that it wins),
 			)
 			"""
+
 			# Energies adjusted for penalties
-			a1_en = agent1.energy - (self.loss_energy_hit if agent1_penalty else 0)
-			a2_en = agent2.energy - (self.loss_energy_hit if agent2_penalty else 0)
+			a_en = agent.energy - (self.loss_energy_hit if agent_penalty else 0)
+			ao_en = agent_other.energy - (self.loss_energy_hit if agent_other_penalty else 0)
 
-			rg1 = self.gain_resource_hit * agent2.energy * a1_en / (a1_en + a2_en)
-			rg2 = self.gain_resource_hit * agent1.energy * a2_en / (a1_en + a2_en)
-			rl1 = self.loss_resource_hit * agent1.energy * a2_en / (a1_en + a2_en)
-			rl2 = self.loss_resource_hit * agent2.energy * a1_en / (a1_en + a2_en)
-			eg1 = self.gain_energy_hit * agent2.energy * a1_en / (a1_en + a2_en)
-			eg2 = self.gain_energy_hit * agent1.energy * a2_en / (a1_en + a2_en)
+			rg1 = self.gain_resource_hit * agent_other.energy * a_en / (a_en + ao_en)
+			rl1 = self.loss_resource_hit * agent.energy * ao_en / (a_en + ao_en)
+			eg1 = self.gain_energy_hit * agent_other.energy * a_en / (a_en + ao_en)
+			el1 = agent.energy * a_en / (a_en + ao_en)
 
-			return rg1, rg2, rl1, rl2, eg1, eg2
+			return rg1, rl1, eg1, el1
 
 		def calc_nticks(self, agent):
 			"""
@@ -92,6 +88,26 @@ class World:
 			:param agent: instance of
 			:return: list[World.Agent]
 			"""
+
+		def calc_gain_equation(self, agent, agents, action, coef_move, interaction_gain_cb):
+			"""
+			N_ticks - a number of ticks during which an agent can move
+			p_actionag - probability that this agent will interact with that particular agent
+			G_move - gain from movement
+			G_actionag - expected gain from interaction.
+
+			S = (\sum_{tick}^{N_ticks}{tick * G_move} + (\sum_{tick}^{N_ticks - 1}{G_actionag * p_actionag}) / N_ticks  # Move and interaction expenses are taken into account
+			p_action = dist(action) / \sum{dist(action)}  # The further the agent the less is interaction probability
+
+			:param agent:
+			:param agents:
+			:param action:
+			:param coef_move:
+			:param interaction_gain_cb:
+			:return:
+			"""
+			raise NotImplemented
+			return 0
 
 	class Agent:
 
@@ -179,6 +195,8 @@ class Reasoning(World):
 		for aspect in ["resource", "resource_inv", "strength", "strength_inv", "resource", "resource_inv"]:
 			strategy.add_children(["take", "run", "hit"])
 
+		self.graph = strategy
+
 	def adjust_global(self, weights: list = []):
 		"""
 		:param userval: Pair of weights (not necessarily normalized) corresponding to "invasive" and "safe" strategies. Format: [a, b]
@@ -196,41 +214,42 @@ class Reasoning(World):
 	def _reachable(agent1, agent2, tick):
 		return dist(agent1.coord, agent2.coord) / World.Agent.SPEED <= tick
 
-	def _calc_gain_equation(self, agent, agents, action_this, coef_move, interaction_gain_cb):
-		return 0
-
 	def _normalize_scores(self, run, hit, idle, take):
-		pass
+		raise NotImplemented
+		return run, hit, idle, take
 
 	def _infer_action_enemy_strength_local(self, agent_id):
-		nt = self.world.rules.calc_nticks(self.agents_all[agent_id])
-		agent_this = self.agents_all[agent_id]
 
-		# Gain idle
-		# Situations while current agent is replenishing its energy and gets hit eventually.
-		gain_idle = 0
-
-		gain_idle = self._calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			action_this=World.Agent.Action.IDLE, coef_move=0,
-			interaction_gain_cb=lambda agent, agent_other: self.world.rules.calc_fight(agent, agent_other, False, True)[5])
-
-		gain_run = self._calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			action_this=World.Agent.Action.RUN, coef_move=0,
-			interaction_gain_cb=lambda agent, agent_other: self.world.rules.calc_fight(agent, agent_other, False, True)[5])
-
+		gain_idle = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
+			action=World.Agent.Action.IDLE, coef_move=0,
+			interaction_gain_cb=lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[2])
+		gain_run = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
+			action=World.Agent.Action.RUN, coef_move=0,
+			interaction_gain_cb=lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[2])
 		gain_take = gain_run
+		gain_hit = self.world.rules.calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
+			action=World.Agent.Action.HIT, coef_move=0,
+			interaction_gain_cb=lambda agent, agent_other: .5 * (self.world.rules.calc_fight(agent_other, agent, True, True)[2] + self.world.rules.calc_fight(agent_other, agent, True, False)[2]))
 
-		def interaction_gain_hit(agent, agent_other):
-			"""Expected gain considering different possibilities regarding the other agent's aggressiveness"""
-			return .5 * (self.world.rules.calc_fight(agent, agent_other, True, True)[5] + self.world.rules.calc_fight(agent, agent_other, True, False)[5])
+		gain_run, gain_hit, gain_idle, gain_take = self._normalize_scores(gain_run, gain_hit, gain_idle, gain_take)
 
-		gain_run = self._calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
-			action_this=World.Agent.Action.RUN, coef_move=0,
-			interaction_gain_cb=lambda agent, agent_other: interaction_gain_hit(agent, agent_other)[5])
+		return {"run": gain_run, "hit": gain_hit, "idle": gain_idle, "take": gain_take}
 
 	def _infer_action_enemy_strength_inv_local(self, agent_id):
+		gain_idle = self._calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
+			action=World.Agent.Action.IDLE, coef_move=0,
+			interaction_gain_cb=lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[3])
+		gain_run = self._calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
+			action=World.Agent.Action.RUN, coef_move=0,
+			interaction_gain_cb=lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[3])
+		gain_take = gain_run
+		gain_hit = self._calc_gain_equation(self.agents_all[agent_id], self.world.agents_here,
+			action=World.Agent.Action.HIT, coef_move=0,
+			interaction_gain_cb=lambda agent, agent_other: .5 * (self.world.rules.calc_fight(agent_other, agent, True, True)[3] + self.world.rules.calc_fight(agent_other, agent, True, False)[3]))
 
-		gain_idle =
+		gain_run, gain_hit, gain_idle, gain_take = self._normalize_scores(gain_run, gain_hit, gain_idle, gain_take)
+
+		return {"run": gain_run, "hit": gain_hit, "idle": gain_idle, "take": gain_take}
 
 	def _infer_action_resource_local(self, agent_id):
 		pass
