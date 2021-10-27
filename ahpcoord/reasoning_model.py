@@ -86,10 +86,10 @@ class World:
 			N_ticks - a number of ticks during which an agent can move
 			p_actionag - probability that this agent will interact with that particular agent
 			G_move - gain from movement
-			G_actionag - expected gain from interaction.
+			G_actionag - expected gain from interaction with the agent
 
 			S = (\sum_{tick}^{N_ticks}{tick * G_move} + (\sum_{tick}^{N_ticks - 1}{G_actionag * p_actionag}) / N_ticks  # Move and interaction expenses are taken into account
-			p_action = dist(action) / \sum{dist(action)}  # The further the agent the less is interaction probability
+			p_action = dist(action) / \sum{dist(action)}  # The further is the agent the less is interaction probability
 
 			:param agent:
 			:param agents:
@@ -116,20 +116,25 @@ class World:
 				gain_move *= coef_move
 
 			for t in range(nt - 1):
-				int = {
-					World.Agent.Type.RESOURCE: take_gain_cb,
-					World.Agent.Type.HITTER: take_gain_cb,
-				}
-				reachable = self.get_reachable(agent, agents_here, t)
+				agents_reachable = self.get_reachable(agent, agents_here, t)
+				gains = []
+				dists = []
 
-				if hit_gain_cb is not None:
-					interactive = set(filter(lambda ag: ag.type is World.Agent.Type.RESOURCE, reachable))
+				for agent_other in agents_reachable:
+					if not (take_gain_cb is None) and agent_other.type == World.Agent.Type.RESOURCE:
+						gains.append(take_gain_cb(agent, agent_other))
+					elif agent_other.team != agent.team:
+						gains.append(hit_gain_cb(agent, agent_other))
+					else:
+						continue
 
-				if take_gain_cb is not None:
-					interactive.union(set(filter(lambda ag: not (ag.type is World.Agent.Type.RESOURCE) and agent.team != ag.team)))
+					dists.append(dist(agent, agent_other))
 
-				dist_overall = reduce(lambda sum, ag: sum + dist(agent, ag), interactive, 0)
+				dist_overall = sum(dists)
+				probabilities = list(map(lambda d: d / dist_overall), dists)
+				gain_interactions = reduce(lambda s, pair: s + pair[0] * pair[1], zip(gains, probabilities), 0)
 
+			return (gain_move + gain_interactions) / nt
 
 		def get_reachable(self, agent, agents_here, nticks):
 			return set(filter(lambda ag: dist(agent.coord, ag) // self.speed <= nticks, agents_here))
@@ -310,7 +315,7 @@ class Reasoning:
 
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 1)
 
-	def _infer_action_local(self, agent_id):
+	def infer_action_local(self, agent_id):
 		enemy_strength_weights = self._infer_action_enemy_strength_local(agent_id)
 		enemy_strength_inv_weights = self._infer_action_enemy_strength_inv_local(agent_id)
 		resource_weights = self._infer_action_resource_local(agent_id)
