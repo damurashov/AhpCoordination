@@ -139,6 +139,13 @@ class World:
 		def get_reachable(self, agent, agents_here, nticks):
 			return set(filter(lambda ag: dist(agent.coord, ag) // self.speed <= nticks, agents_here))
 
+		def get_normalization_addendum(self):
+			"""
+			The one that ensures that we don't get negative values for normalization
+			"""
+			return max([math.fabs(.5 * self.loss_energy_step * (self.situation_assessment_tick + 1)),
+				math.fabs(.5 * self.gain_energy_idle * (self.situation_assessment_tick + 1))])
+
 	class Agent:
 
 		class Type:
@@ -242,8 +249,11 @@ class Reasoning:
 	# within each context. The assessments are implemented as normalized vector of scores for each action.
 
 	def _normalize_scores(self, run, hit, idle, take):
-		raise NotImplemented
-		return run, hit, idle, take
+		"""
+		Performs a sort of normalization, ensures that values are non-zero. The rest is AHPy's responsibility
+		"""
+		na = self.world.rules.get_normalization_addendum()
+		return run + na, hit + na, idle + na, take + na
 
 	def _infer_decorator(self, agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, coef_move):
 		"""boilerplate-reducing method"""
