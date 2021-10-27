@@ -4,6 +4,8 @@ import math
 from scipy.spatial.distance import cityblock as dist
 from functools import reduce
 
+def debug(s):
+	print(s)
 
 class World:
 	"""
@@ -48,6 +50,9 @@ class World:
 
 			if agent_other.type == World.Agent.Type.HITTER:  # Interaction b\w a hitter and a hitter
 				assert agent_penalty or agent_other_penalty  # At least someone has to start a fight
+
+				debug(f"Fight {agent.energy} vs {agent_other.energy}")
+
 				# Energies adjusted for penalties
 				a_en = agent.energy * (1 - self.loss_energy_hit if agent_penalty else 0)
 				ao_en = agent_other.energy * (1 - self.loss_energy_hit if agent_other_penalty else 0)
@@ -128,16 +133,16 @@ class World:
 					else:
 						continue
 
-					dists.append(dist(agent, agent_other))
+					dists.append(dist(agent.coord, agent_other.coord))
 
 				dist_overall = sum(dists)
-				probabilities = list(map(lambda d: d / dist_overall), dists)
+				probabilities = list(map(lambda d: d / dist_overall, dists))
 				gain_interactions = reduce(lambda s, pair: s + pair[0] * pair[1], zip(gains, probabilities), 0)
 
 			return (gain_move + gain_interactions) / nt
 
 		def get_reachable(self, agent, agents_here, nticks):
-			return set(filter(lambda ag: dist(agent.coord, ag) // self.speed <= nticks, agents_here))
+			return set(filter(lambda ag: dist(agent.coord, ag.coord) // self.speed <= nticks, agents_here))
 
 		def get_normalization_addendum(self):
 			"""
@@ -213,7 +218,7 @@ class Reasoning:
 		self.world = world
 		self.graph = self._construct_pref_graph()
 
-	def _construct_pref_graph():
+	def _construct_pref_graph(self):
 
 		strategy = Compare("strategy", Reasoning._to_pairwise({"invasive": .5, "secure": .5}))
 		invasive = Compare("invasive", Reasoning._to_pairwise({
@@ -231,7 +236,8 @@ class Reasoning:
 		strategy.add_children([invasive, secure])
 
 		for aspect in ["resource", "resource_inv", "strength", "strength_inv", "resource", "resource_inv"]:
-			strategy.add_children(["take", "run", "hit"])
+			vec = Reasoning._to_pairwise({"take": 1, "run": 1, "hit": 1, "idle": 1})
+			strategy.add_children([Compare(aspect, vec)], aspect)
 
 		return strategy
 
@@ -275,8 +281,8 @@ class Reasoning:
 	def _infer_action_enemy_strength_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[2]
 		hit_gain_cb_active = lambda agent, agent_other: .5 * \
-			(self.world.rules.calc_fight(agent_other, agent, True, True)[2] +
-			self.world.rules.calc_fight(agent_other, agent, True, False)[2])
+			(self.world.rules.calc_fight(agent, agent_other, True, True)[2] +
+			self.world.rules.calc_fight(agent, agent_other, True, False)[2])
 		take_gain_cb = lambda agent, agent_other: 0
 
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
@@ -284,8 +290,8 @@ class Reasoning:
 	def _infer_action_enemy_strength_inv_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[3]
 		hit_gain_cb_active = lambda agent, agent_other: .5 * \
-			(self.world.rules.calc_fight(agent_other, agent, True, True)[3] +
-			self.world.rules.calc_fight(agent_other, agent, True, False)[3])
+			(self.world.rules.calc_fight(agent, agent_other, True, True)[3] +
+			self.world.rules.calc_fight(agent, agent_other, True, False)[3])
 		take_gain_cb = lambda agent, agent_other: 0
 
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
@@ -293,18 +299,18 @@ class Reasoning:
 	def _infer_action_resource_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[0]
 		hit_gain_cb_active = lambda agent, agent_other: .5 * \
-			(self.world.rules.calc_fight(agent_other, agent, True, True)[0] +
-			self.world.rules.calc_fight(agent_other, agent, True, False)[0])
-		take_gain_cb = hit_gain_cb_passive
+			(self.world.rules.calc_fight(agent, agent_other, True, True)[0] +
+			self.world.rules.calc_fight(agent, agent_other, True, False)[0])
+		take_gain_cb = lambda agent, agent_other: self.world.rules.calc_fight(agent, agent_other, False, True)[0]
 
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_resouce_inv_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[1]
 		hit_gain_cb_active = lambda agent, agent_other: .5 * \
-			(self.world.rules.calc_fight(agent_other, agent, True, True)[1] +
-			self.world.rules.calc_fight(agent_other, agent, True, False)[1])
-		take_gain_cb = hit_gain_cb_passive
+			(self.world.rules.calc_fight(agent, agent_other, True, True)[1] +
+			self.world.rules.calc_fight(agent, agent_other, True, False)[1])
+		take_gain_cb = lambda agent, agent_other: self.world.rules.calc_fight(agent, agent_other, False, True)[0]
 
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
@@ -333,6 +339,13 @@ class Reasoning:
 		resource_inv_weights = self._infer_action_resouce_inv_local(agent_id)
 		strength_weights = self._infer_action_strength_inv_local(agent_id)
 		strength_inv_weights = self._infer_action_strength_inv_local(agent_id)
+
+		debug(enemy_strength_weights)
+		debug(enemy_strength_inv_weights)
+		debug(resource_weights)
+		debug(resource_inv_weights)
+		debug(strength_weights)
+		debug(strength_inv_weights)
 
 		self.graph.update_weights(enemy_strength_weights, 'enemy_strength')
 		self.graph.update_weights(enemy_strength_inv_weights, 'enemy_strength_inv')
