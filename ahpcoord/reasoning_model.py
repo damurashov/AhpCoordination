@@ -245,7 +245,7 @@ class Reasoning:
 			self.world.rules.calc_fight(agent_other, agent, True, False)[2])
 		take_gain_cb = lambda agent, agent_other: 0
 
-		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, lambda a, b: 0, 0)
+		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_enemy_strength_inv_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[3]
@@ -254,7 +254,7 @@ class Reasoning:
 			self.world.rules.calc_fight(agent_other, agent, True, False)[3])
 		take_gain_cb = lambda agent, agent_other: 0
 
-		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, lambda a, b: 0, 0)
+		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_resource_local(self, agent_id):
 		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent_other, agent, False, True)[0]
@@ -275,9 +275,21 @@ class Reasoning:
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_strength_local(self, agent_id):
+		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent, agent_other, False, True)[2]
+		hit_gain_cb_active = lambda agent, agent_other: .5 * \
+			(self.world.rules.calc_fight(agent, agent_other, True, True)[2] +
+			self.world.rules.calc_fight(agent, agent_other, True, False)[2])
+		take_gain_cb = hit_gain_cb_passive
+
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, -1)
 
 	def _infer_action_strength_inv_local(self, agent_id):
+		hit_gain_cb_passive = lambda agent, agent_other: self.world.rules.calc_fight(agent, agent_other, False, True)[3]
+		hit_gain_cb_active = lambda agent, agent_other: .5 * \
+			(self.world.rules.calc_fight(agent, agent_other, True, True)[3] +
+			self.world.rules.calc_fight(agent, agent_other, True, False)[3])
+		take_gain_cb = hit_gain_cb_passive
+
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 1)
 
 	def _infer_action_local(self, agent_id):
