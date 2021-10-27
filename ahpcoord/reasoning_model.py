@@ -2,13 +2,7 @@ from ahpy.ahpy.ahpy import Compare
 import copy
 import math
 from scipy.spatial.distance import cityblock as dist
-
-
-def _progression_sum(n):
-	"""
-	:return: sum([1, 2, 3, ..., n])
-	"""
-	return n * (n + 1) / 2
+from functools import reduce
 
 
 class World:
@@ -87,16 +81,7 @@ class World:
 			"""
 			return self.gain_energy_idle * ticks, self.loss_energy_step * ticks
 
-		def get_reachable(self, nticks, agent, agents):
-			"""
-			Returns agents that are reachable within the given period
-			:param nticks: Number of ticks within which an agent has to be reached
-			:param agent: instance of
-			:return: list[World.Agent]
-			"""
-			pass
-
-		def calc_gain_equation(self, agent, agents, f_move, coef_move, hit_gain_cb=None, take_gain_cb=None):
+		def calc_gain_equation(self, agent, agents_here, f_move: bool, coef_move, hit_gain_cb=None, take_gain_cb=None):
 			"""
 			N_ticks - a number of ticks during which an agent can move
 			p_actionag - probability that this agent will interact with that particular agent
@@ -109,12 +94,45 @@ class World:
 			:param agent:
 			:param agents:
 			:param action:
-			:param coef_move:
+			:param coef_move: Enables contextual interpretation, i.e. whether or not move effects provide gain or loss
 			:param interaction_gain_cb:
 			:return:
 			"""
-			raise NotImplemented
-			return 0
+
+			def _progression_sum(n):
+				"""
+				:return: sum([1, 2, 3, ..., n])
+				"""
+				return n * (n + 1) / 2
+
+			nt = self.calc_nticks(agent)
+			gain_move = 0
+
+			if not math.isclose(.0, coef_move, abs_tol=.001):
+				nt = self.calc_nticks(agent)
+				# f_move denotes whether the agent is on the move, or it replenishes the energy
+				gain_move = _progression_sum(nt)
+				gain_move *= self.loss_energy_step if f_move else self.gain_energy_idle
+				gain_move *= coef_move
+
+			for t in range(nt - 1):
+				int = {
+					World.Agent.Type.RESOURCE: take_gain_cb,
+					World.Agent.Type.HITTER: take_gain_cb,
+				}
+				reachable = self.get_reachable(agent, agents_here, t)
+
+				if hit_gain_cb is not None:
+					interactive = set(filter(lambda ag: ag.type is World.Agent.Type.RESOURCE, reachable))
+
+				if take_gain_cb is not None:
+					interactive.union(set(filter(lambda ag: not (ag.type is World.Agent.Type.RESOURCE) and agent.team != ag.team)))
+
+				dist_overall = reduce(lambda sum, ag: sum + dist(agent, ag), interactive, 0)
+
+
+		def get_reachable(self, agent, agents_here, nticks):
+			return set(filter(lambda ag: dist(agent.coord, ag) // self.speed <= nticks, agents_here))
 
 	class Agent:
 
