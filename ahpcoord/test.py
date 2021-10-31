@@ -65,15 +65,16 @@ def get_agents_here(world: World, agent_id):
 		if a.id != agent.id and dist(agent.coord, a.coord) < world.rules.situation_assessment_radius:
 			agents_here.append(a)
 
-	debug(agents_here)
+	debug("get_agents_here()", "agent this", agent, "agents here", *agents_here)
 	return agents_here
 
 
-def plot_situation(world):
+def plot_situation(world, agent_id):
 	for a in world.agents_here + [world.agents_all[agent_id]]:
 		plt.scatter(a.coord[0], a.coord[1], color='red')
 
 	plt.show()
+
 
 def run():
 	world = init_world()

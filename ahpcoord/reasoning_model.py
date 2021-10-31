@@ -1,11 +1,17 @@
 from ahpy.ahpy.ahpy import Compare
+from enum import Enum
 import copy
 import math
 from scipy.spatial.distance import cityblock as dist
 from functools import reduce
 
-def debug(s):
-	print(s)
+
+def debug(*args):
+	if len(args) > 1:
+		args = ("",) + args + ("",)
+
+	[print(str(a)) for a in args]
+
 
 class World:
 	"""
@@ -64,6 +70,7 @@ class World:
 
 				return rg1, rl1, eg1, el1
 			elif agent_other.type == World.Agent.Type.RESOURCE:  # Interaction b\w a hitter and a resource
+				debug("fight with resource")
 				return self.gain_resource_take * agent_other.energy, 0, self.gain_energy_take * agent_other.energy, 0
 
 		def calc_nticks(self, agent):
@@ -120,6 +127,7 @@ class World:
 				gain_move *= self.loss_energy_step if f_move else self.gain_energy_idle
 				gain_move *= coef_move
 
+			# Get gain from interactions with all the agents available
 			for t in range(nt - 1):
 				agents_reachable = self.get_reachable(agent, agents_here, t)
 				gains = []
@@ -153,23 +161,36 @@ class World:
 
 	class Agent:
 
-		class Type:
+		class Type(Enum):
 			RESOURCE = 0
 			HITTER = 1
 
-		class Action:
+		class Activity(Enum):
 			HIT = 0
 			RUN = 1
 			TAKE = 2
 			IDLE = 3
 
+		def __str__(self):
+			return '; '.join([
+				"Agent",
+				str({
+					"id": self.id,
+					"coord": self.coord,
+					"energy": self.energy,
+					"type": str(self.type),
+					"team": self.team,
+					"activity": str(self.activity),
+				})
+			])
+
 		def __init__(self):
 			self.id = int()
 			self.coord = list()
 			self.energy = float()
-			self.type = str()
+			self.type = int()
 			self.team = int()
-			self.activity = World.Agent.Action.IDLE
+			self.activity = World.Agent.Activity.IDLE
 
 	def __init__(self):
 		self.agents_all = dict()  # All agents, for global situation assessment. Format: {agent_id: instance of Agent}
@@ -340,12 +361,15 @@ class Reasoning:
 		strength_weights = self._infer_action_strength_inv_local(agent_id)
 		strength_inv_weights = self._infer_action_strength_inv_local(agent_id)
 
-		debug(enemy_strength_weights)
-		debug(enemy_strength_inv_weights)
-		debug(resource_weights)
-		debug(resource_inv_weights)
-		debug(strength_weights)
-		debug(strength_inv_weights)
+		debug(
+			"infer_action_local()",
+			"enemy_strength", enemy_strength_weights,
+			"enemy_strength_inv", enemy_strength_inv_weights,
+			"resource", resource_weights,
+			"resource_inv", resource_inv_weights,
+			"strength", strength_weights,
+			"strength_inv", strength_inv_weights,
+		)
 
 		self.graph.update_weights(enemy_strength_weights, 'enemy_strength')
 		self.graph.update_weights(enemy_strength_inv_weights, 'enemy_strength_inv')
@@ -354,4 +378,4 @@ class Reasoning:
 		self.graph.update_weights(strength_weights, 'strength')
 		self.graph.update_weights(strength_inv_weights, 'strength_inv')
 
-		print(self.graph.target_weights)
+		print("target weights", self.graph.target_weights)
