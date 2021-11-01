@@ -177,8 +177,8 @@ class World:
 				"Agent",
 				str({
 					"id": self.id,
-					"coord": self.coord,
-					"energy": self.energy,
+					"coord": [round(c, 2) for c in self.coord],
+					"energy": round(self.energy, 2),
 					"type": str(self.type),
 					"team": self.team,
 					"activity": str(self.activity),
@@ -307,6 +307,7 @@ class Reasoning:
 			self.world.rules.calc_fight(agent, agent_other, True, False)[2])
 		take_gain_cb = lambda agent, agent_other: 0
 
+		debug("_infer_action_enemy_strength_local()")
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_enemy_strength_inv_local(self, agent_id):
@@ -316,6 +317,7 @@ class Reasoning:
 			self.world.rules.calc_fight(agent, agent_other, True, False)[3])
 		take_gain_cb = lambda agent, agent_other: 0
 
+		debug("_infer_action_enemy_strength_inv_local()")
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_resource_local(self, agent_id):
@@ -325,6 +327,7 @@ class Reasoning:
 			self.world.rules.calc_fight(agent, agent_other, True, False)[0])
 		take_gain_cb = lambda agent, agent_other: self.world.rules.calc_fight(agent, agent_other, False, True)[0]
 
+		debug("_infer_action_resource_local()")
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_resouce_inv_local(self, agent_id):
@@ -334,6 +337,7 @@ class Reasoning:
 			self.world.rules.calc_fight(agent, agent_other, True, False)[1])
 		take_gain_cb = lambda agent, agent_other: self.world.rules.calc_fight(agent, agent_other, False, True)[0]
 
+		debug("_infer_action_resouce_inv_local()")
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 0)
 
 	def _infer_action_strength_local(self, agent_id):
@@ -343,6 +347,7 @@ class Reasoning:
 			self.world.rules.calc_fight(agent, agent_other, True, False)[2])
 		take_gain_cb = hit_gain_cb_passive
 
+		debug("_infer_action_strength_local()")
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, -1)
 
 	def _infer_action_strength_inv_local(self, agent_id):
@@ -352,6 +357,7 @@ class Reasoning:
 			self.world.rules.calc_fight(agent, agent_other, True, False)[3])
 		take_gain_cb = hit_gain_cb_passive
 
+		debug("_infer_action_strength_inv_local()")
 		return self._infer_decorator(agent_id, hit_gain_cb_passive, hit_gain_cb_active, take_gain_cb, 1)
 
 	def infer_action_local(self, agent_id):
