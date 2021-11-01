@@ -87,7 +87,7 @@ def run():
 	world.agents_here = get_agents_here(world, agent_id)
 	world.agent = world.agents_all[agent_id]
 
-	rm = Reasoning(world)
+	rm = ReasoningModel(world)
 	rm.infer_action_local(agent_id)
 
 
