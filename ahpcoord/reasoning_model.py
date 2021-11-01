@@ -1,4 +1,4 @@
-from ahpy.ahpy.ahpy import Compare
+from ahpy.ahpy.ahpy import Compare, to_pairwise
 from enum import Enum
 import copy
 import math
@@ -205,33 +205,6 @@ class World:
 
 class ReasoningModel:
 
-	@staticmethod
-	def _to_pairwise(*args):
-		"""
-		From plain non-normalized weight vectors to pairwise comparisons
-		:param args: ["a","b", "c"], [33, 44, 66]  OR  {"a": 33, "b": 44, "c": 66}
-		:return: {("a", "b"): a / b, ("a","c"): a / c, ("b","c"): b / c}
-		"""
-		if len(args) == 2:
-			alternatives = list(args[0])
-			weights = list(args[1])
-		elif len(args) == 1 and type(args[0]) is dict:
-			alternatives = list(args[0].keys())
-			weights = list(args[0].values())
-		else:
-			assert False
-
-		n_alt = len(alternatives)
-		assert n_alt == len(weights)
-
-		ret = dict()
-
-		for i in range(0, n_alt):
-			for j in range(i + 1, n_alt):
-				ret[(alternatives[i], alternatives[j],)] = weights[i] / weights[j]
-
-		return ret
-
 	def __init__(self, world: World):
 		"""
 		:param world_team: The world representing the state of a current team, and specifically the world's state of an
@@ -242,14 +215,14 @@ class ReasoningModel:
 
 	def _construct_pref_graph(self):
 
-		strategy = Compare("strategy", ReasoningModel._to_pairwise({"invasive": .5, "secure": .5}))
-		invasive = Compare("invasive", ReasoningModel._to_pairwise({
+		strategy = Compare("strategy", to_pairwise({"invasive": .5, "secure": .5}))
+		invasive = Compare("invasive", to_pairwise({
 			"enemy_strength": .1,  # Enemy can be converted to resource
 			"enemy_strength_inv": .5,  # Enemy weakness is conducive to successful attack
 			"resource_inv": .5,
 			"strength": .4,
 		}))
-		secure = Compare("secure", ReasoningModel._to_pairwise({
+		secure = Compare("secure", to_pairwise({
 			"enemy_strength": .5,  # Strong enemy is better be avoided,
 			"resource": .5,  # Having a sufficient amount of resource is a good reason to stay away from troubles
 			"strength_inv": .6,  # Weakness of a domestic swarm
@@ -258,7 +231,7 @@ class ReasoningModel:
 		strategy.add_children([invasive, secure])
 
 		for aspect in ["resource", "resource_inv", "strength", "strength_inv", "resource", "resource_inv"]:
-			vec = ReasoningModel._to_pairwise({"take": 1, "run": 1, "hit": 1, "idle": 1})
+			vec = to_pairwise({"take": 1, "run": 1, "hit": 1, "idle": 1})
 			strategy.add_children([Compare(aspect, vec)], aspect)
 
 		return strategy
@@ -272,7 +245,7 @@ class ReasoningModel:
 		if weights is None:
 			weights = self._infer_control_global()
 		else:
-			weights = ReasoningModel._to_pairwise(["invasive", "secure"], weights)
+			weights = to_pairwise(["invasive", "secure"], weights)
 
 	# The following implements a set of ad-hoc heuristic-based assessments of possible impacts of every agent's actions
 	# within each context. The assessments are implemented as normalized vector of scores for each action.
