@@ -24,6 +24,7 @@ class Rules:
 	class Movement:
 		gain_energy_waiting: float = None
 		loss_energy_moving: float = None
+		speed: int = None
 
 	@dataclass
 	class Attack:
@@ -43,7 +44,6 @@ class Rules:
 	resource: Resource = Resource()
 
 	ticks_max: int = None
-	speed_max: int = None
 
 
 @dataclass
@@ -92,25 +92,19 @@ class Agent:
 	energy: float = None
 	type: Type = None
 	team: int = None
-	activity: Activity = None
 
 
 @dataclass
 class Situation:
 	agent: Agent = None
 	agent_other: Agent = None
-	agents_neighboring: list[Agent] = None
 
 	activity: Activity = None
 	activity_other: Activity = None
 
-	# Whether activities stated are relevant.
-	f_use_activity_neighboring = False
-
 	ticks: int = None
 
 
-@dataclass
 class RulesInterp:
 	"""
 	Binding link btw. agents, actions, and rules. Covers those aspects of situation assessment that do not involve
@@ -118,68 +112,131 @@ class RulesInterp:
 	"""
 
 	@staticmethod
+	def __is_aggressive(activity: Activity):
+		return activity == Activity.HIT
+
+	@staticmethod
+	def __is_moving(activity: Activity):
+		return activity != Activity.IDLE
+
+	@staticmethod
 	def get_fight_energy_gain(rules: Rules, situation: Situation):
 		""" Energy gained, if wins """
-		pass
+		energy_adjusted = RulesInterp.get_energy_before_fight(rules, Situation(agent=situation.agent_other,
+			activity=situation.activity_other))
+
+		return energy_adjusted * rules.attack.gain_energy_win
 
 	@staticmethod
 	def get_fight_energy_loss(rules: Rules, situation: Situation):
 		""" Energy lost, if loses """
-		pass
+		energy_adjusted = RulesInterp.get_energy_before_fight(rules, situation)
+
+		return energy_adjusted
 
 	@staticmethod
 	def get_fight_resource_gain(rules: Rules, situation: Situation):
 		""" Resource gained, if wins """
-		pass
+		energy_adjusted = RulesInterp.get_energy_before_fight(rules, Situation(agent=situation.agent_other,
+			activity=situation.activity_other))
+
+		return energy_adjusted * rules.attack.gain_resource_win
 
 	@staticmethod
 	def get_fight_resource_loss(rules: Rules, situation: Situation):
 		""" Resource lost, if loses """
-		pass
+		energy_adjusted = RulesInterp.get_energy_before_fight(rules, situation)
+
+		return energy_adjusted * rules.attack.loss_resource_lose
 
 	@staticmethod
 	def get_energy_before_fight(rules: Rules, situation: Situation):
 		""" Energy before attack adjusted for penalties imposed by a type of activity """
+		assert 0 <= rules.attack.loss_energy_aggressive <= 1
+
+		energy_delta = RulesInterp.get_energy_delta_movement(rules, situation)
+		energy_adjusted = situation.agent_other.energy + energy_delta
+		is_aggressive = situation.activity == Activity.HIT
+
+		if is_aggressive:
+			energy_adjusted *= (1 - rules.attack.loss_energy_aggressive)
+
+		return energy_adjusted
 
 	@staticmethod
 	def get_gather_resource_gain(rules: Rules, situation: Situation):
 		""" Resource gained from one resource agent """
-		pass
+		return situation.agent_other.energy * rules.resource.gain_resource
+
+	@staticmethod
+	def get_gather_energy_gain(rules: Rules, situation: Situation):
+		""" Energy gained from one resource agent """
+		return situation.agent_other.energy * rules.resource.gain_energy
 
 	@staticmethod
 	def get_energy_delta_movement(rules: Rules, situation: Situation):
-		pass
+		is_moving = situation.activity != Activity.IDLE
+
+		if is_moving:
+			delta = -rules.movement.loss_energy_moving * situation.ticks
+		else:
+			delta = rules.movement.gain_energy_waiting * situation.ticks
+
+		return delta
 
 	@staticmethod
-	def is_fight_interaction(rules: Rules, situation: Situation):
+	def is_fightable(rules: Rules, situation: Situation):
 		""" At least one of the agent has to instantiate a fight, i.e. be in HIT mode """
-		pass
+		return situation.agent.type == Agent.Type.HITTER and situation.agent_other.type == Agent.Type.HITTER and \
+			(situation.activity == Activity.HIT or situation.activity_other == Activity.HIT) and \
+			situation.agent.team != situation.agent_other.team
 
 	@staticmethod
-	def is_gather_interaction(rules: Rules, situation: Situation):
+	def is_gatherable(rules: Rules, situation: Situation):
 		""" Hitter / resource type of interaction """
-		pass
+		return situation.agent.type == Agent.Type.HITTER and situation.agent_other.type == Agent.Type.RESOURCE and \
+			situation.activity == Activity.TAKE
+
+	@staticmethod
+	def is_loveable(rules: Rules, situation: Situation):
+		""" Well, eh, hm... """
+		return True
 
 	@staticmethod
 	def get_distance(rules: Rules, situation: Situation):
-		"""
-		distance b\w agents
-		"""
-		pass
+		""" distance b\w agents """
+		return cityblock(situation.agent.coord, situation.agent_other.coord)
 
 	@staticmethod
-	def is_interactable(rules: Rules, situation: Situation):
+	def is_reachable(rules: Rules, situation: Situation):
 		""" Estimates whether or not a particular agent can be reached / can reach another agent within a particular timespan. """
-		pass
 
-	@staticmethod
-	def get_interactable(rules: Rules, situation: Situation):
-		""" Returns list of another agents this agent can possibly interact with within a timespan it has. It takes distance, agent type, and activity into account """
-		pass
+		def is_moving(agent_type: Agent.Type, activity: Activity):
+			""" We either know for a fact that this agent is not moving, or we just assume that it does """
+			if agent_type == Agent.Type.HITTER:
+				return activity != Activity.IDLE or activity is None
+			elif agent_type == Agent.Type.RESOURCE:
+				return False
+			else:
+				raise ValueError
+
+		speed = (is_moving(situation.agent.type, situation.activity) + is_moving(situation.agent_other.type,
+			situation.activity_other)) * rules.movement.speed
+
+		if math.isclose(speed, 0, abs_tol=.001):
+			return False
+
+		return int(RulesInterp.get_distance(rules, situation) / speed) <= situation.ticks
 
 	@staticmethod
 	def get_ticks_available(rules: Rules, situation: Situation):
 		""" Number if ticks an agent has in its disposal before running out of energy, or before an iteration is over """
+		is_moving = situation.activity != Activity.IDLE
+
+		if is_moving:
+			return min([rules.ticks_max, int(situation.agent.energy / rules.movement.loss_energy_moving)])
+		else:
+			return rules.ticks_max
 
 
 class ReasoningModel:
@@ -199,7 +256,7 @@ class ReasoningModel:
 		for activity_other in Activity:
 			situation_direct = Situation(agent=agent, agent_other=agent_other, activity=activity, activity_other=activity_other, ticks=ticks)
 
-			if not RulesInterp.is_fight_interaction(self.rules, situation_direct) or not RulesInterp.is_interactable(self.rules, situation_direct):
+			if not RulesInterp.is_fightable(self.rules, situation_direct) or not RulesInterp.is_reachable(self.rules, situation_direct):
 				continue  # There is no fight, nobody gains, nobody loses
 
 			situation_reverse = Situation(agent=agent_other, agent_other=agent, activity=activity_other, activity_other=activity, ticks=ticks)
@@ -222,10 +279,11 @@ class ReasoningModel:
 
 		outcome = Outcome()
 
-		if not RulesInterp.is_gather_interaction(self.rules, situation):
+		if not RulesInterp.is_gatherable(self.rules, situation) or not RulesInterp.is_reachable(self.rules, situation):
 			return outcome
 
 		outcome.gain.resource = RulesInterp.get_gather_resource_gain(self.rules, situation)
+		outcome.gain.energy = RulesInterp.get_gather_energy_gain(self.rules, situation)
 
 		return outcome
 
@@ -272,9 +330,9 @@ class ReasoningModel:
 		def gain_int_a_t(a, ao, t):
 			s = Situation(agent=a, agent_other=ao, ticks=t, activity=activity)
 
-			if RulesInterp.is_fight_interaction(self.rules, s):
+			if RulesInterp.is_fightable(self.rules, s):
 				outcome = self.calc_int_hit(a, t, activity, ao)
-			elif RulesInterp.is_gather_interaction(self.rules, s):
+			elif RulesInterp.is_gatherable(self.rules, s):
 				outcome = self.calc_int_take(a, t, activity, ao)
 
 			return self.__outcome_to_score(outcome, s)
@@ -284,7 +342,12 @@ class ReasoningModel:
 
 			return self.__outcome_to_score(outcome, aspect)
 
-		n_ticks = RulesInterp.get_ticks_available(self.rules, Situation(agent=agent, activity=activity))
-		agents_interactable = RulesInterp.get_interactable(self.rules, Situation(agent=agent, agents_neighboring=agents, activity=activity, ticks=n_ticks))
+		def situation(a):
+			return Situation(agent=agent, agent_other=a, activity=activity, ticks=n_ticks)
 
-		return self.__calc_expected_gain(agent, agents_interactable, n_ticks, gain_mv_t, gain_int_a_t)
+		n_ticks = RulesInterp.get_ticks_available(self.rules, Situation(agent=agent, activity=activity))
+		agents_reachable = list(filter(lambda a: RulesInterp.is_gatherable(self.rules, situation(a)) and
+			RulesInterp.is_fightable(self.rules, situation(a)) and
+			RulesInterp.is_reachable(self.rules, situation(a)), agents))
+
+		return self.__calc_expected_gain(agent, agents_reachable, n_ticks, gain_mv_t, gain_int_a_t)
