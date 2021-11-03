@@ -38,9 +38,9 @@ class Rules:
 		gain_energy: float = None  # Energy acquired from a resource taken
 		gain_resource: float = None  # Resource acquired from a resource taken
 
-	movement = Movement()
-	attack = Attack()
-	resource = Resource()
+	movement: Movement = Movement()
+	attack: Attack = Attack()
+	resource: Resource = Resource()
 
 	ticks_max: int = None
 	speed_max: int = None
@@ -87,25 +87,12 @@ class Agent:
 		RESOURCE = 0
 		HITTER = 1
 
-	id: int
-	coord: list[float]
-	energy: float
-	type: type(Type.RESOURCE)
-	team: int
-	activity: type(Activity.IDLE)
-
-	def __str__(self):
-		return '; '.join([
-			"Agent",
-			str({
-				"id": self.id,
-				"coord": [round(c, 2) for c in self.coord],
-				"energy": round(self.energy, 2),
-				"type": str(self.type),
-				"team": self.team,
-				"activity": str(self.activity),
-			})
-		])
+	id: int = None
+	coord: list[float] = None
+	energy: float = None
+	type: Type = None
+	team: int = None
+	activity: Activity = None
 
 
 @dataclass
@@ -204,8 +191,6 @@ class ReasoningModel:
 		"""
 		self.rules = rules
 
-		self.agent_max_speed = max([self.agent_get_speed(a) for a in Activity])
-
 	def calc_int_hit(self, agent, ticks, activity: Activity, agent_other):
 
 		outcome = Outcome(Score(0, 0), Score(0, 0), Score(0, 0))
@@ -256,17 +241,16 @@ class ReasoningModel:
 
 		return outcome
 
-	@staticmethod
-	def __calc_expected_gain(agent, agents_reachable, n_ticks, cb_gain_mv_t=lambda agent, t: None,
+	def __calc_expected_gain(self, agent, agents_reachable, n_ticks, cb_gain_mv_t=lambda agent, t: None,
 		cb_gain_int_a_t=lambda agent, agent_other, t: None):
 
 		def prob_int(a: Agent):
-			return ReasoningModel.get_dist(agent.coord, a.coord) / dist_sum
+			return RulesInterp.get_distance(self.rules, Situation(agent, a)) / dist_sum
 
 		def expected_gain_int_t(t):
 			return reduce(lambda g_sum, agent_other: g_sum + cb_gain_int_a_t(agent, agent_other, t) * prob_int(agent_other), agents_reachable, 0)
 
-		dist_sum = reduce(lambda s, a: s + ReasoningModel.get_dist(agent.coord, a.coord), agents_reachable, 0)
+		dist_sum = reduce(lambda s, a: s + RulesInterp.get_distance(self.rules, Situation(agent, a)), agents_reachable, 0)
 		gain_mv = reduce(lambda g_sum, t: g_sum + cb_gain_mv_t(agent, t), range(1, n_ticks + 1), 0)  # t \in [1; N_t]
 		gain_int = reduce(lambda g_sum, t: g_sum + expected_gain_int_t(t), range(1, n_ticks), 0)  # t \in [1; N_1 - 1]
 
@@ -288,9 +272,9 @@ class ReasoningModel:
 		def gain_int_a_t(a, ao, t):
 			s = Situation(agent=a, agent_other=ao, ticks=t, activity=activity)
 
-			if RulesInterp.is_fight_interaction(self.rules, situation):
+			if RulesInterp.is_fight_interaction(self.rules, s):
 				outcome = self.calc_int_hit(a, t, activity, ao)
-			elif RulesInterp.is_gather_interaction(self.rules, situation):
+			elif RulesInterp.is_gather_interaction(self.rules, s):
 				outcome = self.calc_int_take(a, t, activity, ao)
 
 			return self.__outcome_to_score(outcome, s)
