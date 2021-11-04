@@ -59,11 +59,16 @@ class Log:
 		def is_class(arg):
 			return inspect.isclass(arg)
 
+		def is_topic(arg):
+			return arg[0] == '@'
+
 		def format_class(arg):
 			return arg.__module__ + "." + arg.__qualname__
 
 		def format_callable(arg):
-			return arg.__module__ + "." + arg.__qualname__ + "(); "
+			return arg.__module__ + "." + arg.__qualname__ + "()"
+
+		topics = []
 
 		for a in args:
 			if is_path(a):
@@ -72,12 +77,9 @@ class Log:
 				context += [format_class(a)]
 			elif callable(a):
 				context += [format_callable(a)]
+			elif is_topic(a):
+				topics.append(a)
 			else:
 				suffix += [str(a)]
 
-		topics = " "
-		if "topics" in kwargs.keys():
-			topics = kwargs["topics"]
-			topics = ' ' + ', '.join(topics) + ' | '
-
-		return '[' + ' : '.join(context) + ']' + topics + ' '.join(suffix)
+		return '[' + ' : '.join(context) + ']' + ' ' + ' '.join(topics) + ' ' + ' '.join(suffix)
