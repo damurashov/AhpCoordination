@@ -219,19 +219,23 @@ class RulesInterp:
 		def is_moving(agent_type: Agent.Type, activity: Activity):
 			""" We either know for a fact that this agent is not moving, or we just assume that it does """
 			if agent_type == Agent.Type.HITTER:
-				return activity != Activity.IDLE or activity is None
+				return activity != Activity.IDLE
 			elif agent_type == Agent.Type.RESOURCE:
 				return False
 			else:
 				raise ValueError
 
-		speed = (is_moving(situation.agent.type, situation.activity) + is_moving(situation.agent_other.type,
-			situation.activity_other)) * rules.movement.speed
+		speed1 = is_moving(situation.agent.type, situation.activity) * rules.movement.speed
+		time1 = RulesInterp.get_ticks_available(rules, Situation(agent=situation.agent, activity=situation.activity))
+		speed2 = is_moving(situation.agent_other.type, situation.activity_other) * rules.movement.speed
+		time2 = RulesInterp.get_ticks_available(rules, Situation(agent=situation.agent_other, activity=situation.activity_other))
+		distance = RulesInterp.get_distance(rules, situation)
 
-		if math.isclose(speed, 0, abs_tol=.001):
-			return False
+		Log.debug(RulesInterp.is_reachable, "@move", "speed1:", speed1, "time1:", time1, "activity1:",
+			situation.activity, "speed2:", speed2, "time2:", time2, "activity2:", situation.activity_other, "distance:",
+			distance)
 
-		return int(RulesInterp.get_distance(rules, situation) / speed) <= situation.ticks
+		return speed1 * time1 + speed2 * time2 >= distance
 
 	@staticmethod
 	def get_ticks_available(rules: Rules, situation: Situation):
