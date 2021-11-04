@@ -3,28 +3,37 @@ import pathlib
 import os
 import inspect
 
-class Logging:
+
+class Log:
 
 	LEVEL = logging.DEBUG
 	_logger = None
 
 	@staticmethod
-	def get_logger():
+	def logger():
 
-		if Logging._logger is None:
-			Logging._logger = logging.getLogger('logger')
-			Logging._logger.setLevel(Logging.LEVEL)
+		if Log._logger is None:
+			Log._logger = logging.getLogger('logger')
+			Log._logger.setLevel(Log.LEVEL)
 
 			sh = logging.StreamHandler()
-			sh.setLevel(Logging.LEVEL)
+			sh.setLevel(Log.LEVEL)
 			sh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
-			Logging._logger.addHandler(sh)
+			Log._logger.addHandler(sh)
 
-		return Logging._logger
+		return Log._logger
 
 	@staticmethod
-	def format(*args, **kwargs):
+	def __wrap(method, *args, **kwargs):
+		return getattr(Log.logger(), method)(Log.fmt(*args, **kwargs))
+
+	@staticmethod
+	def debug(*args, **kwargs):
+		return Log.__wrap("debug", *args, **kwargs)
+
+	@staticmethod
+	def fmt(*args, **kwargs):
 		"""
 		Formats input data according to the following pattern: "[CONTEXT] TOPICS (if any) | message".
 
