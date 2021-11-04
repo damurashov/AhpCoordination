@@ -9,6 +9,9 @@ class Log:
 	LEVEL = logging.DEBUG
 	_logger = None
 
+	_filter_pass = set()
+	_filter_kick = set()
+
 	@staticmethod
 	def logger():
 
@@ -25,8 +28,28 @@ class Log:
 		return Log._logger
 
 	@staticmethod
+	def filter(fkick: set[str] = set(), fpass: set[str] = set()):
+		Log._filter_kick.update(fkick)
+		Log._filter_pass.update(fpass)
+
+	@staticmethod
+	def filter_reset():
+		Log._filter_pass.clear()
+		Log._filter_kick.clear()
+
+	@staticmethod
 	def __wrap(method, *args, **kwargs):
-		return getattr(Log.logger(), method)(Log.fmt(*args, **kwargs))
+		fmt = Log.fmt(*args, **kwargs)
+
+		for p in Log._filter_pass:
+			if not fmt.find(p) >= 0:
+				return
+
+		for k in Log._filter_kick:
+			if fmt.find(k) >= 0:
+				return
+
+		return getattr(Log.logger(), method)(fmt)
 
 	@staticmethod
 	def debug(*args, **kwargs):
