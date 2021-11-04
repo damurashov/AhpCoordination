@@ -71,6 +71,32 @@ class TestReasoningModel(unittest.TestCase):
 		Log.debug(TestReasoningModel.test_junk, "here we go", "@test")
 
 
+class TestHeuristics(unittest.TestCase):
+
+	def setUp(self):
+		rules = generate_rules()
+		self.reasoning_model = ReasoningModel(generate_rules())
+		print("")
+
+	def test_weaker_enemy_less_loss(self):
+		agent = Agent(team=1, energy=5, coord=[1], type=Agent.Type.HITTER)
+		agent_weaker = Agent(team=1, energy=2, coord=[1], type=Agent.Type.HITTER)
+		enemy = Agent(team=2, energy=5, coord=[2], type=Agent.Type.HITTER)
+		enemy_weaker = Agent(team=2, energy=2, coord=[2], type=Agent.Type.HITTER)
+
+		for activity in Activity:
+			outcome = self.reasoning_model.calc_int_hit(agent, 5, activity, enemy)
+			Log.debug(self.test_weaker_enemy_less_loss, "\n\n\n\nAGENT WEAKER\n\n", '-' * 250)
+			outcome_agent_weaker = self.reasoning_model.calc_int_hit(agent_weaker, 5, activity, enemy)
+			Log.debug(self.test_weaker_enemy_less_loss, "\n\n\n\nENEMY WEAKER\n\n", '-' * 250)
+			outcome_enemy_weaker = self.reasoning_model.calc_int_hit(agent, 5, activity, enemy_weaker)
+
+			self.assertTrue(outcome.loss.energy > outcome_enemy_weaker.loss.energy)
+			self.assertTrue(outcome.loss.resource > outcome_enemy_weaker.loss.resource)
+			self.assertTrue(outcome.enemy_loss.energy > outcome_agent_weaker.enemy_loss.energy)
+			self.assertTrue(outcome.enemy_loss.resource > outcome_agent_weaker.enemy_loss.resource)
+
+
 class TestRulesInterp(unittest.TestCase):
 
 	def setUp(self):
