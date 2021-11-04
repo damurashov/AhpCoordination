@@ -44,13 +44,13 @@ class TestReasoningModel(unittest.TestCase):
 		)
 
 	def setUp(self):
-		rules = generate_rules()
+		self.rules = generate_rules()
 		self.agent_this = TestReasoningModel.__generate_agent(1, Agent.Type.HITTER, 1)
 
 		self.agents_other = []
 		self.agents_other.extend([TestReasoningModel.__generate_agent(i, Agent.Type.HITTER, 2) for i in range(2, 10)])
 		self.agents_other.extend([TestReasoningModel.__generate_agent(i, Agent.Type.RESOURCE, 0) for i in range(10, 15)])
-		self.reasoning_model = ReasoningModel(rules)
+		self.reasoning_model = ReasoningModel(self.rules)
 		print("")
 
 	def test_calc_int_hit(self):
@@ -67,16 +67,63 @@ class TestReasoningModel(unittest.TestCase):
 		Log.debug(TestReasoningModel.test_calc_int_hit, outcome)
 		self.assertTrue(outcome.gain.energy > 0)
 
-	def test_junk(self):
-		Log.debug(TestReasoningModel.test_junk, "here we go", "@test")
+	def __setup_surroundings(self):
+		dist_reachable = self.rules.movement.speed * 1
+		dist_maybe_reachable = (self.rules.ticks_max + 1) * self.rules.movement.speed
+		dist_unreachable = dist_maybe_reachable * 2  # Even if 2 agents move simultaneously
+		energy_max = self.rules.movement.loss_energy_moving * self.rules.ticks_max * 3
+
+		self.a = Agent(id=1, coord=[0], team=1, energy=energy_max, type=Agent.Type.HITTER)
+		self.a_reachable = Agent(id=1, coord=[dist_reachable], team=1, energy=energy_max, type=Agent.Type.HITTER)
+		self.a_maybe_reachable = Agent(id=1, coord=[dist_maybe_reachable], team=1, energy=energy_max, type=Agent.Type.HITTER)
+		self.a_unreachable = Agent(id=1, coord=[dist_unreachable], energy=energy_max, type=Agent.Type.HITTER)
+		self.b_reachable = Agent(id=1, coord=[dist_reachable], energy=energy_max, type=Agent.Type.HITTER)
+		self.b_maybe_reachable = Agent(id=1, coord=[dist_maybe_reachable], energy=energy_max, type=Agent.Type.HITTER)
+		self.b_unreachable = Agent(id=1, coord=[dist_unreachable], energy=energy_max, type=Agent.Type.HITTER)
+		self.res_reachable = Agent(id=1, coord=[dist_reachable], energy=energy_max, type=Agent.Type.RESOURCE)
+		self.res_unreachable = Agent(id=1, coord=[dist_unreachable], energy=energy_max, type=Agent.Type)
+
+	def __chk_scores_eq(self, f_expect_equal, a, packs, activities=None, aspects=None):
+			if activities is None:
+				activities = Activity
+
+			if aspects is None:
+				aspects = SubStrategy
+
+			for activity in activities:
+				for aspect in aspects:
+					prev_result = None
+
+					for pack in packs:
+						res = self.reasoning_model.calc_expected_gain(a, pack, aspect, activity)
+						Log.debug(self.__chk_scores_eq, res)
+
+						if f_expect_equal and res != prev_result and prev_result is not None:
+							self.assertTrue(False)
+						elif not f_expect_equal and res == prev_result:
+							self.assertTrue(False)
+
+						prev_result = res
+
+			self.assertTrue(True)
 
 
-class TestHeuristics(unittest.TestCase):
+	def test_surroundings_assessment(self):
+		""" Whether or not the model picks out friends, reachable agents, harvestable items, whether or not
+		it considers spatial aspects, a current agent's activity"""
 
-	def setUp(self):
-		rules = generate_rules()
-		self.reasoning_model = ReasoningModel(generate_rules())
-		print("")
+		Log.filter(fkick={"reasoning_model.RulesInterp"})
+
+		self.__setup_surroundings()
+
+		# Ignore those the agent will never reach
+		self.__chk_scores_eq(True, self.a, activities=[Activity.HIT, Activity.RUN], packs=[
+			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_reachable, self.res_unreachable],
+			[self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_reachable, self.res_unreachable],
+			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.res_reachable, self.res_unreachable],
+			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_reachable],
+			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_unreachable],])
+
 
 	def test_weaker_enemy_less_loss(self):
 		agent = Agent(team=1, energy=5, coord=[1], type=Agent.Type.HITTER)
