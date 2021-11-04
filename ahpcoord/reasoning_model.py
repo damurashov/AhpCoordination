@@ -226,9 +226,11 @@ class RulesInterp:
 				raise ValueError
 
 		speed1 = is_moving(situation.agent.type, situation.activity) * rules.movement.speed
-		time1 = RulesInterp.get_ticks_available(rules, Situation(agent=situation.agent, activity=situation.activity))
+		nticks1 = RulesInterp.get_ticks_available(rules, Situation(agent=situation.agent, activity=situation.activity))
+		time1 = nticks1 if situation.ticks is None else min([situation.ticks, nticks1])
 		speed2 = is_moving(situation.agent_other.type, situation.activity_other) * rules.movement.speed
-		time2 = RulesInterp.get_ticks_available(rules, Situation(agent=situation.agent_other, activity=situation.activity_other))
+		nticks2 = RulesInterp.get_ticks_available(rules, Situation(agent=situation.agent_other, activity=situation.activity_other))
+		time2 = nticks2 if situation.ticks is None else min([nticks2, situation.ticks])
 		distance = RulesInterp.get_distance(rules, situation)
 
 		Log.debug(RulesInterp.is_reachable, "@move", "speed1:", speed1, "time1:", time1, "activity1:",
@@ -283,8 +285,13 @@ class ReasoningModel:
 			outcome.gain.resource += RulesInterp.get_fight_resource_gain(self.rules, situation_direct) * win_probability / n_activities
 			outcome.loss.energy += RulesInterp.get_fight_energy_loss(self.rules, situation_direct) * (1 - win_probability) / n_activities
 			outcome.loss.resource += RulesInterp.get_fight_resource_loss(self.rules, situation_direct) * (1 - win_probability) / n_activities
-			outcome.enemy_loss.energy += RulesInterp.get_fight_resource_loss(self.rules, situation_reverse) * (1 - win_probability) / n_activities
-			outcome.enemy_loss.resource += RulesInterp.get_fight_resource_loss(self.rules, situation_reverse) * (1 - win_probability) / n_activities
+			outcome.enemy_loss.energy += RulesInterp.get_fight_energy_loss(self.rules, situation_reverse) * win_probability / n_activities
+			outcome.enemy_loss.resource += RulesInterp.get_fight_resource_loss(self.rules, situation_reverse) * win_probability / n_activities
+
+			Log.debug("@fight", self.calc_int_hit, "\n energy initial:", agent.energy,
+				"\n energy before fight:", energy, "\n activity:", activity, "\n energy initial other:",
+				agent_other.energy, "\n energy before fight other:", energy_other, "\n activity other:",
+				activity_other, "\n win probability:", win_probability, "\n outcome:", outcome)
 
 		return outcome
 
