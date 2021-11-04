@@ -371,8 +371,6 @@ class ReasoningModel:
 
 		n_ticks = RulesInterp.get_ticks_available(self.rules, Situation(agent=agent, activity=activity))
 
-		Log.debug(self.calc_expected_gain, "@SA", 'N agents neighboring:', len(agents), 'N_ticks:', n_ticks)
-
 		if activity == Activity.TAKE:
 			# When performing gather, an agent can interact with any other agent from another team.
 			# The following helps us filter out the agent's teammates.
@@ -384,6 +382,6 @@ class ReasoningModel:
 			agents_reachable = list(filter(lambda a: RulesInterp.is_fightable(self.rules, situation(a)) and
 				RulesInterp.is_reachable(self.rules, situation(a)), agents))
 
-		Log.debug(self.calc_expected_gain, "@SA", 'N agents reachable:\n', len(agents_reachable))
+		Log.debug(self.calc_expected_gain, "@SA", 'N agents neighboring:', len(agents), 'N_ticks:', n_ticks, "@SA", 'N agents reachable:', len(agents_reachable))
 
 		return self.__calc_expected_gain(agent, agents_reachable, n_ticks, gain_mv_t, gain_int_a_t)
