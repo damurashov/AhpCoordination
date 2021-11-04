@@ -25,6 +25,7 @@ class TestReasoningModel(unittest.TestCase):
 			movement=Rules.Movement(
 				gain_energy_waiting=.02,
 				loss_energy_moving=.05,
+				speed=.3,
 			),
 			attack = Rules.Attack(
 				loss_energy_aggressive=0.05,
@@ -36,8 +37,7 @@ class TestReasoningModel(unittest.TestCase):
 				gain_energy=.5,
 				gain_resource=.5,
 			),
-			ticks_max=5,
-			speed_max=.3,
+			ticks_max=5
 		)
 		self.agent_this = TestReasoningModel.__generate_agent(1, Agent.Type.HITTER, 1)
 
