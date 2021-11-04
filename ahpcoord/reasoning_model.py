@@ -8,6 +8,7 @@ import math
 from scipy.spatial.distance import cityblock
 from functools import reduce
 from dataclasses import dataclass
+from generic import Log
 
 
 def debug(*args):
@@ -123,7 +124,7 @@ class RulesInterp:
 	def get_fight_energy_gain(rules: Rules, situation: Situation):
 		""" Energy gained, if wins """
 		energy_adjusted = RulesInterp.get_energy_before_fight(rules, Situation(agent=situation.agent_other,
-			activity=situation.activity_other))
+			activity=situation.activity_other, ticks=situation.ticks))
 
 		return energy_adjusted * rules.attack.gain_energy_win
 
@@ -138,7 +139,7 @@ class RulesInterp:
 	def get_fight_resource_gain(rules: Rules, situation: Situation):
 		""" Resource gained, if wins """
 		energy_adjusted = RulesInterp.get_energy_before_fight(rules, Situation(agent=situation.agent_other,
-			activity=situation.activity_other))
+			activity=situation.activity_other, ticks=situation.ticks))
 
 		return energy_adjusted * rules.attack.gain_resource_win
 
@@ -155,7 +156,7 @@ class RulesInterp:
 		assert 0 <= rules.attack.loss_energy_aggressive <= 1
 
 		energy_delta = RulesInterp.get_energy_delta_movement(rules, situation)
-		energy_adjusted = situation.agent_other.energy + energy_delta
+		energy_adjusted = situation.agent.energy + energy_delta
 		is_aggressive = situation.activity == Activity.HIT
 
 		if is_aggressive:
@@ -187,15 +188,19 @@ class RulesInterp:
 	@staticmethod
 	def is_fightable(rules: Rules, situation: Situation):
 		""" At least one of the agent has to instantiate a fight, i.e. be in HIT mode """
+		fight_activities = [None, Activity.HIT]  # We either do or do not know what states the agents are in. For the latter, we assume that fight is possible
+
 		return situation.agent.type == Agent.Type.HITTER and situation.agent_other.type == Agent.Type.HITTER and \
-			(situation.activity == Activity.HIT or situation.activity_other == Activity.HIT) and \
-			situation.agent.team != situation.agent_other.team
+			situation.agent.team != situation.agent_other.team and \
+			(situation.activity in fight_activities or situation.activity_other in fight_activities)
 
 	@staticmethod
 	def is_gatherable(rules: Rules, situation: Situation):
 		""" Hitter / resource type of interaction """
+		gather_activities = [None, Activity.TAKE]  # If we don't know what the agent is doing, we assume that it may do harvesting
+
 		return situation.agent.type == Agent.Type.HITTER and situation.agent_other.type == Agent.Type.RESOURCE and \
-			situation.activity == Activity.TAKE
+			situation.activity == Activity.TAKE and situation.activity in gather_activities
 
 	@staticmethod
 	def is_loveable(rules: Rules, situation: Situation):
@@ -248,7 +253,11 @@ class ReasoningModel:
 		"""
 		self.rules = rules
 
+		Log.debug(ReasoningModel.__init__, "rules:", self.rules)
+
 	def calc_int_hit(self, agent, ticks, activity: Activity, agent_other):
+
+		assert activity is not None
 
 		outcome = Outcome(Score(0, 0), Score(0, 0), Score(0, 0))
 		n_activities = len(list(Activity))
@@ -257,6 +266,7 @@ class ReasoningModel:
 			situation_direct = Situation(agent=agent, agent_other=agent_other, activity=activity, activity_other=activity_other, ticks=ticks)
 
 			if not RulesInterp.is_fightable(self.rules, situation_direct) or not RulesInterp.is_reachable(self.rules, situation_direct):
+				Log.debug("@fight", self.calc_int_hit, "not fightable or reachable", "fightable:", RulesInterp.is_fightable(self.rules, situation_direct), "reachable:", RulesInterp.is_reachable(self.rules, situation_direct))
 				continue  # There is no fight, nobody gains, nobody loses
 
 			situation_reverse = Situation(agent=agent_other, agent_other=agent, activity=activity_other, activity_other=activity, ticks=ticks)
@@ -346,8 +356,16 @@ class ReasoningModel:
 			return Situation(agent=agent, agent_other=a, activity=activity, ticks=n_ticks)
 
 		n_ticks = RulesInterp.get_ticks_available(self.rules, Situation(agent=agent, activity=activity))
-		agents_reachable = list(filter(lambda a: RulesInterp.is_gatherable(self.rules, situation(a)) and
-			RulesInterp.is_fightable(self.rules, situation(a)) and
-			RulesInterp.is_reachable(self.rules, situation(a)), agents))
+
+		if activity != Activity.TAKE:
+			# When performing gather, an agent can interact with any other agent from another team.
+			# The following helps us filter out the agent's teammates.
+			agents_reachable = list(filter(lambda a: RulesInterp.is_gatherable(self.rules, situation(a)) and
+				RulesInterp.is_fightable(self.rules, situation(a)) and
+				RulesInterp.is_reachable(self.rules, situation(a)), agents))
+		else:
+			# For any other action, interactions are limited to adversarial teams only
+			agents_reachable = list(filter(lambda a: RulesInterp.is_fightable(self.rules, situation(a)) and
+				RulesInterp.is_reachable(self.rules, situation(a)), agents))
 
 		return self.__calc_expected_gain(agent, agents_reachable, n_ticks, gain_mv_t, gain_int_a_t)
