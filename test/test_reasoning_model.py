@@ -113,8 +113,8 @@ class TestReasoningModel(unittest.TestCase):
 		self.assertTrue(f_all_equal == f_expect_all_equal)
 
 	def test_surroundings_assessment(self):
-		""" Whether or not the model picks out friends, reachable agents, harvestable items, whether or not
-		it considers spatial aspects, a current agent's activity"""
+		""" Whether or not the model ignores friends, makes reachable agents, harvestable items, whether or not
+		it considers spatial aspects, and a current agent's activity"""
 
 		Log.filter(fkick={"reasoning_model.RulesInterp"})
 
@@ -127,6 +127,22 @@ class TestReasoningModel(unittest.TestCase):
 			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.res_reachable, self.res_unreachable],
 			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_reachable],
 			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_unreachable],])
+
+		Log.debug('\n' * 3)
+
+		self.__chk_scores_eq(True, self.a, activities=[Activity.TAKE], packs=[
+			[self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_reachable, self.res_unreachable],
+			[self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_reachable, self.res_unreachable],
+			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.res_reachable, self.res_unreachable],
+			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_reachable],])
+
+		Log.debug('\n' * 3)
+
+		# Try to take away a reachable resource or enemy while gathering
+		self.__chk_scores_eq(False, self.a, activities=[Activity.TAKE], aspects=[SubStrategy.RESOURCE_ACQUISITION], packs=[
+			[self.a_reachable, self.b_maybe_reachable, self.res_unreachable],
+			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.res_unreachable],
+			[self.a_reachable, self.b_reachable, self.b_maybe_reachable, self.b_unreachable, self.res_reachable], ])
 
 
 	def test_weaker_enemy_less_loss(self):
