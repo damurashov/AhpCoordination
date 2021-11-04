@@ -51,10 +51,10 @@ class Logging:
 			return inspect.isclass(arg)
 
 		def format_class(arg):
-			return arg.__name__
+			return arg.__module__ + "." + arg.__qualname__
 
 		def format_callable(arg):
-			return arg.__name__ + "()"
+			return arg.__module__ + "." + arg.__qualname__ + "(); "
 
 		for a in args:
 			if is_path(a):
