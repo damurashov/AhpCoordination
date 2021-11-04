@@ -374,8 +374,8 @@ class ReasoningModel:
 		if activity == Activity.TAKE:
 			# When performing gather, an agent can interact with any other agent from another team.
 			# The following helps us filter out the agent's teammates.
-			agents_reachable = list(filter(lambda a: RulesInterp.is_gatherable(self.rules, situation(a)) and
-				RulesInterp.is_fightable(self.rules, situation(a)) and
+			agents_reachable = list(filter(lambda a: (RulesInterp.is_gatherable(self.rules, situation(a)) or
+				RulesInterp.is_fightable(self.rules, situation(a))) and
 				RulesInterp.is_reachable(self.rules, situation(a)), agents))
 		else:
 			# For any other action, interactions are limited to adversarial teams only
