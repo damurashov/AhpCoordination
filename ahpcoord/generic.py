@@ -60,7 +60,7 @@ class Log:
 			return inspect.isclass(arg)
 
 		def is_topic(arg):
-			return arg[0] == '@'
+			return str(arg)[0] == '@'
 
 		def format_class(arg):
 			return arg.__module__ + "." + arg.__qualname__
