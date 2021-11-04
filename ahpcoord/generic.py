@@ -94,6 +94,9 @@ class Log:
 		topics = []
 
 		for a in args:
+			if not (len(str(a))):
+				continue
+
 			if is_path(a):
 				context += [format_path(a)]
 			elif is_class(a):
