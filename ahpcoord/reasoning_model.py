@@ -190,9 +190,12 @@ class RulesInterp:
 		""" At least one of the agent has to instantiate a fight, i.e. be in HIT mode """
 		fight_activities = [None, Activity.HIT]  # We either do or do not know what states the agents are in. For the latter, we assume that fight is possible
 
-		return situation.agent.type == Agent.Type.HITTER and situation.agent_other.type == Agent.Type.HITTER and \
+		res = situation.agent.type == Agent.Type.HITTER and situation.agent_other.type == Agent.Type.HITTER and \
 			situation.agent.team != situation.agent_other.team and \
 			(situation.activity in fight_activities or situation.activity_other in fight_activities)
+		Log.debug(RulesInterp.is_fightable, "@SA", "situation:", situation, "fightable:", res)
+
+		return res
 
 	@staticmethod
 	def is_gatherable(rules: Rules, situation: Situation):
@@ -313,7 +316,7 @@ class ReasoningModel:
 		outcome = Outcome()
 		mv_delta = RulesInterp.get_energy_delta_movement(self.rules, situation)
 
-		if mv_delta:
+		if mv_delta > 0:
 			outcome.gain.energy = mv_delta
 		else:
 			outcome.loss.energy = -mv_delta
@@ -356,7 +359,7 @@ class ReasoningModel:
 			elif RulesInterp.is_gatherable(self.rules, s):
 				outcome = self.calc_int_take(a, t, activity, ao)
 
-			return self.__outcome_to_score(outcome, s)
+			return self.__outcome_to_score(outcome, aspect)
 
 		def gain_mv_t(a, t):
 			outcome = self.calc_mv(a, t, activity)
@@ -368,7 +371,9 @@ class ReasoningModel:
 
 		n_ticks = RulesInterp.get_ticks_available(self.rules, Situation(agent=agent, activity=activity))
 
-		if activity != Activity.TAKE:
+		Log.debug(self.calc_expected_gain, "@SA", 'N agents neighboring:', len(agents), 'N_ticks:', n_ticks)
+
+		if activity == Activity.TAKE:
 			# When performing gather, an agent can interact with any other agent from another team.
 			# The following helps us filter out the agent's teammates.
 			agents_reachable = list(filter(lambda a: RulesInterp.is_gatherable(self.rules, situation(a)) and
@@ -378,5 +383,7 @@ class ReasoningModel:
 			# For any other action, interactions are limited to adversarial teams only
 			agents_reachable = list(filter(lambda a: RulesInterp.is_fightable(self.rules, situation(a)) and
 				RulesInterp.is_reachable(self.rules, situation(a)), agents))
+
+		Log.debug(self.calc_expected_gain, "@SA", 'N agents reachable:\n', len(agents_reachable))
 
 		return self.__calc_expected_gain(agent, agents_reachable, n_ticks, gain_mv_t, gain_int_a_t)
