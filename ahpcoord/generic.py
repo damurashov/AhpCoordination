@@ -56,6 +56,10 @@ class Log:
 		return Log.__wrap("debug", *args, **kwargs)
 
 	@staticmethod
+	def info(*args, **kwargs):
+		return Log.__wrap("info", *args, **kwargs)
+
+	@staticmethod
 	def fmt(*args, **kwargs):
 		"""
 		Formats input data according to the following pattern: "[CONTEXT] TOPICS (if any) | message".
