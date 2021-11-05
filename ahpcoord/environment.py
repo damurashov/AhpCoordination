@@ -45,7 +45,7 @@ class WorldFactory:
 		return agent
 
 	def gen_resource(self):
-		return self.__generate_agent(Agent.Type.RESOURE)
+		return self.__generate_agent(Agent.Type.RESOURCE)
 
 	def gen_hitter(self, team_id=None):
 		return self.__generate_agent(Agent.Type.HITTER, team_id=team_id)
@@ -56,6 +56,7 @@ class World:
 	def __init__(self):
 		self.__team_to_agents = dict()
 		self.__id_to_agent = dict()
+		self.__resources = list()
 
 	def save(self, filename):
 		pickle.dump(self.__id_to_agent, open(filename, 'wb'))
@@ -63,6 +64,7 @@ class World:
 	def load(self, filename):
 		self.__team_to_agents.clear()
 		self.__id_to_agent.clear()
+		self.__resources.clear()
 
 		loaded = pickle.load(open(filename, 'rb'))
 		Log.debug(self.load, "loading agents", loaded.values())
@@ -72,6 +74,10 @@ class World:
 
 	def add_agent(self, agent: Agent):
 		self.__id_to_agent[agent.id] = agent
+
+		if agent.type == Agent.Type.RESOURCE:
+			self.__resources.append(agent)
+			return  # The following is for HITTERs only
 
 		if agent.team not in self.__team_to_agents:
 			self.__team_to_agents[agent.team] = list()
@@ -86,44 +92,11 @@ class World:
 		elif agent_id is not None:
 			return self.__id_to_agent[agent_id] if agent_id in self.__id_to_agent else None
 
+	def get_resources(self):
+		return self.__resources
+
 	def calc_teams(self):
 		return len(self.__team_to_agents.keys())
 
 	def calc_agents(self):
 		return len(self.__id_to_agent.keys())
-
-
-class PrefGraph:
-
-	def __init__(self):
-		self.__init_pref_graph()
-
-	def __init_pref_graph(self):
-		graph = Graph("strategy")
-		graph.set_weights("strategy", {
-			Strategy.INVASIVE.value: 1,
-			Strategy.SECURE.value: 1,
-		})
-		graph.set_weights(Strategy.INVASIVE.value, {
-			SubStrategy.ENEMY_RESOURCE_DEPRIVATION.value: 1,
-			SubStrategy.RESOURCE_ACQUISITION.value: 1,
-			SubStrategy.ENEMY_WEAKENING.value: 1,
-			SubStrategy.STRENGTH_GAINING.value: 1,
-		})
-		graph.set_weights(Strategy.SECURE.value, {
-			SubStrategy.STRENGTH_GAINING.value: 1,
-			SubStrategy.STRENGTH_SAVING.value: 1,
-			SubStrategy.RESOURCE_SAVING.value: 1,
-		})
-
-		action_weights = {
-			Activity.HIT.value: 1,
-			Activity.IDLE.value: 1,
-			Activity.RUN.value: 1,
-			Activity.TAKE.value: 1,
-		}
-
-		for aspect in SubStrategy:
-			graph.set_weights(aspect.value, action_weights)
-
-		self.graph = graph
