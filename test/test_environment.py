@@ -25,9 +25,8 @@ class TestWorld(unittest.TestCase):
 		self.world = World()
 
 		for _ in range(self.n_agents):
-			agent = self.factory.gen_hitter()
-			Log.debug(self.setUp, "generated agent", str(agent))
-			self.world.add_agent(agent)
+			self.world.add_agent(self.factory.gen_hitter())
+			self.world.add_agent(self.factory.gen_resource())
 
 		Log.debug(self.setUp,  "world.n_agents", self.world.calc_agents())
 
@@ -37,6 +36,7 @@ class TestWorld(unittest.TestCase):
 		self.world = World()
 		self.world.load("echo")
 
-		self.assertTrue(self.world.calc_agents() == self.n_agents)
+		self.assertTrue(self.world.calc_agents() == self.n_agents * 2)
+		self.assertTrue(len(self.world.get_resources()) == self.n_agents)
 
 
