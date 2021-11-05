@@ -60,11 +60,6 @@ class Outcome:
 	enemy_loss: Score = Score()
 
 
-class Strategy(Enum):
-	INVASIVE = 'invasive'
-	SECURE = 'secure'
-
-
 class SubStrategy(Enum):
 	ENEMY_WEAKENING = 'enemy_weakening'
 	ENEMY_RESOURCE_DEPRIVATION = 'enemy_resource_deprivation'
