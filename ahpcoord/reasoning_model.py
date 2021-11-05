@@ -366,4 +366,6 @@ class ReasoningModel:
 			agents_reachable = list(filter(lambda a: RulesInterp.is_fightable(self.rules, situation(a)) and
 				RulesInterp.is_reachable(self.rules, situation(a)), agents))
 
+		Log.debug(self.calc_expected_gain, "agent id.:", agent.id, "N others:", len(agents_reachable), "aspect:", aspect.value, "activity:", activity.value)
+
 		return self.__calc_expected_gain(agent, agents_reachable, n_ticks, gain_mv_t, gain_int_a_t)
