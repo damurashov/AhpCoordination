@@ -84,7 +84,7 @@ class Agent:
 		HITTER = 1
 
 	id: int = None
-	coord: list[float] = None
+	coord: list = None
 	energy: float = None
 	type: Type = None
 	team: int = None

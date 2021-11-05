@@ -84,8 +84,8 @@ class World:
 
 		self.__team_to_agents[agent.team].append(agent)
 
-	def get_agent(self, team_id=None, agent_id=None) -> list[Agent] or Agent or None:
-		assert team_id is None != agent_id is None
+	def get_agent(self, team_id=None, agent_id=None) -> list or Agent or None:
+		assert (team_id is None) != (agent_id is None)
 
 		if team_id is not None:
 			return self.__team_to_agents[team_id] if team_id in self.__team_to_agents else None

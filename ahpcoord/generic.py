@@ -28,7 +28,7 @@ class Log:
 		return Log._logger
 
 	@staticmethod
-	def filter(fkick: set[str] = set(), fpass: set[str] = set()):
+	def filter(fkick=set(), fpass=set()):
 		Log._filter_kick.update(fkick)
 		Log._filter_pass.update(fpass)
 
