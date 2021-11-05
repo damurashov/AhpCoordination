@@ -100,14 +100,15 @@ class Simulation:
 
 			for activity in Activity:
 				score = self.reasoning_model.calc_expected_gain(agent, agents_other, aspect, activity)
-				scores[activity.value] = score
+				scores[activity.value] = score + .001  # Prevent 0 division
 
-			Log.debug(self._assess_weights, "agent id.:", agent.id, "aspect:", aspect.value, activity.value, "scores:", scores)
+			Log.debug(self._assess_weights, "agent id.:", agent.id, "aspect:", aspect.value, "scores:", scores)
 			self.graph.set_weights(aspect.value, ahpy.to_pairwise(scores))
 
 		return self.graph.get_weights()  # regarding the root node
 
 	def run(self):
+		Log.info(self.run, "N this team:", len(self.this_team), "N rivals and resources:", len(self.rivals))
 		for agent in self.this_team:
 			print(self._assess_weights(agent, self.rivals))
 
