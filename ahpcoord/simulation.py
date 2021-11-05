@@ -8,6 +8,7 @@ class Simulation:
 	N_AGENTS = 50
 	N_RESOURCE = 20
 	N_RIVAL_TEAMS = 1
+	THIS_TEAM = 1
 
 	def __init__(self, filename=None):
 		self.world = World()
@@ -38,6 +39,11 @@ class Simulation:
 			ticks_max=5
 		))
 
+		self.__init_agents(filename)
+		self.__init_rivals()
+		self.__init_pref_graph()
+
+	def __init_agents(self, filename):
 		if filename is not None:
 			self.world.load(filename)
 		else:
@@ -48,34 +54,42 @@ class Simulation:
 				self.world.add_agent(self.factory.gen_hitter())
 
 	def __init_pref_graph(self):
-		graph = Graph("strategy")
-		graph.set_weights("strategy", {
-			Strategy.INVASIVE.value: 1,
+		self.graph = Graph("strategy")
+		self.graph.set_weights("strategy", ahpy.to_pairwise({
+			Strategy.INVASIVE.value: 2,
 			Strategy.SECURE.value: 1,
-		})
-		graph.set_weights(Strategy.INVASIVE.value, {
+		}))
+		self.graph.set_weights(Strategy.INVASIVE.value, ahpy.to_pairwise({
 			SubStrategy.ENEMY_RESOURCE_DEPRIVATION.value: 1,
-			SubStrategy.RESOURCE_ACQUISITION.value: 1,
-			SubStrategy.ENEMY_WEAKENING.value: 1,
+			SubStrategy.RESOURCE_ACQUISITION.value: 5,
+			SubStrategy.ENEMY_WEAKENING.value: 2,
+			SubStrategy.STRENGTH_GAINING.value: 4,
+		}))
+		self.graph.set_weights(Strategy.SECURE.value, ahpy.to_pairwise({
 			SubStrategy.STRENGTH_GAINING.value: 1,
-		})
-		graph.set_weights(Strategy.SECURE.value, {
-			SubStrategy.STRENGTH_GAINING.value: 1,
-			SubStrategy.STRENGTH_SAVING.value: 1,
-			SubStrategy.RESOURCE_SAVING.value: 1,
-		})
+			SubStrategy.STRENGTH_SAVING.value: 4,
+			SubStrategy.RESOURCE_SAVING.value: 2,
+		}))
 
 		action_weights = {
 			Activity.HIT.value: 1,
 			Activity.IDLE.value: 1,
 			Activity.RUN.value: 1,
-			Activity.TAKE.value: 1,
+			Activity.TAKE.value: 100,
 		}
 
 		for aspect in SubStrategy:
-			graph.set_weights(aspect.value, action_weights)
+			self.graph.set_weights(aspect.value, ahpy.to_pairwise(action_weights))
 
-		self.graph = graph
+	def __init_rivals(self):
+		self.rivals = []
+		self.this_team = self.world.get_agent(team_id=Simulation.THIS_TEAM)
+
+		for team_id in range(0, Simulation.N_RIVAL_TEAMS + 1):
+			if team_id != Simulation.THIS_TEAM:
+				self.rivals.extend(self.world.get_agent(team_id=team_id))
+
+		self.rivals.extend(self.world.get_resources())
 
 	def update_secure_to_invasive(self, secure_to_invasive: float):
 		self.graph.set_weights("strategy", {(Strategy.SECURE.value, Strategy.INVASIVE.value,): secure_to_invasive})
@@ -88,10 +102,16 @@ class Simulation:
 				score = self.reasoning_model.calc_expected_gain(agent, agents_other, aspect, activity)
 				scores[activity.value] = score
 
+			Log.debug(self._assess_weights, "agent id.:", agent.id, "aspect:", aspect.value, activity.value, "scores:", scores)
 			self.graph.set_weights(aspect.value, ahpy.to_pairwise(scores))
 
-			return self.graph.get_weights()  # regarding the root node
+		return self.graph.get_weights()  # regarding the root node
 
-	def assess_weights(self):
-		rivals = reduce(lambda s, )
+	def run(self):
+		for agent in self.this_team:
+			print(self._assess_weights(agent, self.rivals))
 
+
+if __name__ == "__main__":
+	simulation = Simulation()
+	simulation.run()
