@@ -25,7 +25,7 @@ class Rules:
 	class Movement:
 		gain_energy_waiting: float = None
 		loss_energy_moving: float = None
-		speed: int = None
+		speed: float = None
 
 	@dataclass
 	class Attack:
