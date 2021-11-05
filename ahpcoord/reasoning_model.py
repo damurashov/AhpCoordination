@@ -188,7 +188,6 @@ class RulesInterp:
 		res = situation.agent.type == Agent.Type.HITTER and situation.agent_other.type == Agent.Type.HITTER and \
 			situation.agent.team != situation.agent_other.team and \
 			(situation.activity in fight_activities or situation.activity_other in fight_activities)
-		Log.debug(RulesInterp.is_fightable, "@SA", "situation:", situation, "fightable:", res)
 
 		return res
 
@@ -231,10 +230,6 @@ class RulesInterp:
 		time2 = nticks2 if situation.ticks is None else min([nticks2, situation.ticks])
 		distance = RulesInterp.get_distance(rules, situation)
 
-		Log.debug(RulesInterp.is_reachable, "@move", "speed1:", speed1, "time1:", time1, "activity1:",
-			situation.activity, "speed2:", speed2, "time2:", time2, "activity2:", situation.activity_other, "distance:",
-			distance)
-
 		return speed1 * time1 + speed2 * time2 >= distance
 
 	@staticmethod
@@ -270,7 +265,6 @@ class ReasoningModel:
 			situation_direct = Situation(agent=agent, agent_other=agent_other, activity=activity, activity_other=activity_other, ticks=ticks)
 
 			if not RulesInterp.is_fightable(self.rules, situation_direct) or not RulesInterp.is_reachable(self.rules, situation_direct):
-				Log.debug("@fight", self.calc_int_hit, "not fightable or reachable", "fightable:", RulesInterp.is_fightable(self.rules, situation_direct), "reachable:", RulesInterp.is_reachable(self.rules, situation_direct))
 				continue  # There is no fight, nobody gains, nobody loses
 
 			situation_reverse = Situation(agent=agent_other, agent_other=agent, activity=activity_other, activity_other=activity, ticks=ticks)
@@ -285,11 +279,6 @@ class ReasoningModel:
 			outcome.loss.resource += RulesInterp.get_fight_resource_loss(self.rules, situation_direct) * (1 - win_probability) / n_activities
 			outcome.enemy_loss.energy += RulesInterp.get_fight_energy_loss(self.rules, situation_reverse) * win_probability / n_activities
 			outcome.enemy_loss.resource += RulesInterp.get_fight_resource_loss(self.rules, situation_reverse) * win_probability / n_activities
-
-			Log.debug("@fight", self.calc_int_hit, "\n energy initial:", agent.energy,
-				"\n energy before fight:", energy, "\n activity:", activity, "\n energy initial other:",
-				agent_other.energy, "\n energy before fight other:", energy_other, "\n activity other:",
-				activity_other, "\n win probability:", win_probability, "\n outcome:", outcome)
 
 		return outcome
 
@@ -376,7 +365,5 @@ class ReasoningModel:
 			# For any other action, interactions are limited to adversarial teams only
 			agents_reachable = list(filter(lambda a: RulesInterp.is_fightable(self.rules, situation(a)) and
 				RulesInterp.is_reachable(self.rules, situation(a)), agents))
-
-		Log.debug(self.calc_expected_gain, "@SA", 'N agents neighboring:', len(agents), 'N_ticks:', n_ticks, "@SA", 'N agents reachable:', len(agents_reachable))
 
 		return self.__calc_expected_gain(agent, agents_reachable, n_ticks, gain_mv_t, gain_int_a_t)
