@@ -98,10 +98,12 @@ class Simulation:
 		for aspect in SubStrategy:
 			scores = dict()
 
+			# Assess situation locally within a given context
 			for activity in Activity:
 				score = self.reasoning_model.calc_expected_gain(agent, agents_other, aspect, activity)
 				scores[activity.value] = score + .001  # Prevent 0 division
 
+			# Convolve low-level scores up to the global (strategic) goal
 			Log.debug(self._assess_weights, "agent id.:", agent.id, "aspect:", aspect.value, "scores:", scores)
 			self.graph.set_weights(aspect.value, ahpy.to_pairwise(scores))
 
@@ -109,10 +111,35 @@ class Simulation:
 
 	def run(self):
 		Log.info(self.run, "N this team:", len(self.this_team), "N rivals and resources:", len(self.rivals))
+		res = []
+
 		for agent in self.this_team:
-			print(self._assess_weights(agent, self.rivals))
+			scores = self._assess_weights(agent, self.rivals)
+			Log.info(self.run, "agent id.:", agent.id, "scores:", scores, "@sim")
+			res.append(scores)
+
+		return res
+
+
+class Data:
+
+	@staticmethod
+	def hist_action(res: dict):
+
+		hist = dict()
+
+		for r in res:
+			action = max(r, key=lambda k: r[k])
+
+			if action not in hist:
+				hist[action] = 0
+
+			hist[action] += 1
+
+		return hist
 
 
 if __name__ == "__main__":
 	simulation = Simulation()
-	simulation.run()
+	res = simulation.run()
+	print(Data.hist_action(res))
