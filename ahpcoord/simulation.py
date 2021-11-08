@@ -1,7 +1,6 @@
-from ahpy.ahpy import ahpy
-from reasoning_model import *
 from environment import *
-from pathlib import Path
+import pickle
+import matplotlib.pyplot as plt
 
 
 class Simulation:
@@ -130,25 +129,67 @@ class Simulation:
 		return res
 
 
-class Data:
+def hist_action(res: dict):
 
-	@staticmethod
-	def hist_action(res: dict):
+	hist = dict()
 
-		hist = dict()
+	for r in res:
+		action = max(r, key=lambda k: r[k])
 
-		for r in res:
-			action = max(r, key=lambda k: r[k])
+		if action not in hist:
+			hist[action] = 0
 
-			if action not in hist:
-				hist[action] = 0
+		hist[action] += 1
 
-			hist[action] += 1
+	return hist
 
-		return hist
+
+def get_action_data(simulation: Simulation):
+
+	activities = dict([(a.value, [],) for a in Activity])
+	activities['x'] = []
+
+	for i in range(1, 1000, 10):
+		s2i = i / 100
+		simulation.update_secure_to_invasive(s2i)
+		hist = hist_action(simulation.run())
+
+		for activity in Activity:
+			activities[activity.value].append(hist.pop(activity.value, 0))
+
+		activities['x'].append(s2i)
+
+	return activities
+
+
+def save_action_data(data, filename):
+	pickle.dump(data, open(filename, 'wb'))
+
+
+def load_action_data(filename):
+	return pickle.load(open(filename, 'rb'))
+
+
+def print_action_data(action_data):
+	x = action_data.pop('x')
+
+	for k, v in action_data.items():
+		plt.plot(x, v, 'o', label=k)
+
+	plt.legend()
+	plt.show()
+
+
+def prepared_init():
+	simulation = Simulation()
+	action_data = get_action_data(simulation)
+	save_action_data(action_data, "action")
+	print(action_data)
+
+
+def prepared_plot():
+	print_action_data(load_action_data("action"))
 
 
 if __name__ == "__main__":
-	simulation = Simulation()
-	res = simulation.run()
-	print(Data.hist_action(res))
+	prepared_plot()
