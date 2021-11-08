@@ -1,6 +1,7 @@
 from ahpy.ahpy import ahpy
 from reasoning_model import *
 from environment import *
+from pathlib import Path
 
 
 class Simulation:
@@ -44,20 +45,28 @@ class Simulation:
 		self.__init_pref_graph()
 
 	def __init_agents(self, filename):
-		if filename is not None:
-			self.world.load(filename)
-		else:
+		def gen():
 			for _ in range(Simulation.N_RESOURCE):
 				self.world.add_agent(self.factory.gen_resource())
 
 			for _ in range(Simulation.N_AGENTS):
 				self.world.add_agent(self.factory.gen_hitter())
 
+		if filename is not None:
+			try:
+				self.world.load(filename)
+			except:
+				gen()
+
+			self.world.save(filename)
+		else:
+			gen()
+
 	def __init_pref_graph(self):
 		self.graph = Graph("strategy")
 		self.graph.set_weights("strategy", ahpy.to_pairwise({
 			Strategy.INVASIVE.value: 2,
-			Strategy.SECURE.value: 1,
+			Strategy.SECURE.value: 100,
 		}))
 		self.graph.set_weights(Strategy.INVASIVE.value, ahpy.to_pairwise({
 			SubStrategy.ENEMY_RESOURCE_DEPRIVATION.value: 1,
