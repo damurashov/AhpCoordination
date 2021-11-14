@@ -175,7 +175,10 @@ def print_action_data(action_data):
 
 	for k, v in action_data.items():
 		plt.plot(x, v, 'o', label=k)
+		plt.step(x, v, color='grey', alpha=.3)
 
+	plt.xlabel('secure / invasive')
+	plt.ylabel('N agents')
 	plt.legend()
 	plt.show()
 
