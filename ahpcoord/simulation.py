@@ -174,11 +174,11 @@ def print_action_data(action_data):
 	x = action_data.pop('x')
 
 	for k, v in action_data.items():
-		plt.plot(x, v, 'o', label=k)
+		plt.plot(x, v, '.', label={'HIT': "атака", 'IDLE': "ожидание", 'TAKE': "сбор", 'RUN': "защита"}[k])
 		plt.step(x, v, color='grey', alpha=.3)
 
-	plt.xlabel('secure / invasive')
-	plt.ylabel('N agents')
+	plt.xlabel('защитная / агрессивная')
+	plt.ylabel('Количество агентов')
 	plt.legend(prop={'size': 16})
 	plt.show()
 
