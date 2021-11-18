@@ -179,7 +179,7 @@ def print_action_data(action_data):
 
 	plt.xlabel('secure / invasive')
 	plt.ylabel('N agents')
-	plt.legend()
+	plt.legend(prop={'size': 16})
 	plt.show()
 
 
