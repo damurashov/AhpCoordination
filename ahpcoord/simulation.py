@@ -194,5 +194,11 @@ def prepared_plot():
 	print_action_data(load_action_data("action"))
 
 
+def run_new_simulation():
+	simulation = Simulation()
+	action_data = get_action_data(simulation)
+	print_action_data(action_data)
+
+
 if __name__ == "__main__":
 	prepared_plot()
